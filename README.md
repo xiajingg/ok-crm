@@ -149,7 +149,43 @@ mvn -pl apps/crm-boot -am package -Pedition-pro
 
 ## 快速开始
 
-### 方式零：零依赖体验（最快，不需要 MySQL / Redis）
+### 一键启动（推荐）
+
+仓库自带启动脚本，会把后端和前端一起拉起来：
+
+```bash
+# 1. 打包（只需一次）
+mvn -B -DskipTests package -pl apps/crm-boot -am
+
+# 2. 安装前端依赖（只需一次）
+cd web && npm install && cd ..
+
+# 3a. 连真实 MySQL 启动
+export DB_PASSWORD=你的MySQL密码
+./scripts/start-local.sh mysql
+
+# 3b. 或者零依赖启动（嵌入式 H2，不需要 MySQL）
+./scripts/start-local.sh demo
+```
+
+脚本会自动等后端就绪、检查端口占用，并把前端的接口代理指向后端。按 `Ctrl-C` 一起停。
+
+密码也可以写在仓库根目录的 `.env.local`（该文件已被 `.gitignore` 忽略）：
+
+```
+DB_PASSWORD=你的MySQL密码
+```
+
+**首次使用 MySQL 时先建库**（Flyway 会自动建表）：
+
+```bash
+mysql -uroot -p -e "CREATE DATABASE ok_crm DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+```
+
+> ⚠️ 后台请用 **http://localhost:5173** 访问，不要用 `127.0.0.1:5173` ——
+> Vite 默认只监听 IPv6 的 `localhost`。
+
+### 方式零：手动零依赖启动（不需要 MySQL / Redis）
 
 适合本地试用、给客户演示、录屏。用的是嵌入式 H2 文件库，数据落在 `./data/`，重启不丢。
 
