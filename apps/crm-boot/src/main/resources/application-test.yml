@@ -1,0 +1,30 @@
+# 集成测试：H2 内存库（MySQL 兼容模式），不需要外部依赖即可跑通全部用例。
+# Flyway 脚本按「MySQL / H2 双兼容」的可移植 DDL 编写，因此这里照常执行迁移，
+# 等于顺带验证了建表脚本的正确性。
+spring:
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:okcrm;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+  cache:
+    type: simple
+  flyway:
+    enabled: true
+    clean-disabled: false
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
+
+okcrm:
+  jwt:
+    secret: test-only-secret-key-must-be-at-least-32-bytes-long
+  pool:
+    # 测试环境关闭定时触发，回收逻辑用显式调用验证
+    recycle-enabled: false
+    recycle-cron: "0 0 2 * * ?"
+
+logging:
+  level:
+    com.okcrm: info

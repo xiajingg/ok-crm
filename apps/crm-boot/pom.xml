@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.okcrm</groupId>
+        <artifactId>ok-crm</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>crm-boot</artifactId>
+    <name>crm-boot</name>
+    <description>唯一启动器：按 edition profile 组装所需业务模块，产出可交付的瘦包</description>
+
+    <dependencies>
+        <!-- 平台底座，任何版本都必需 -->
+        <dependency>
+            <groupId>com.okcrm</groupId>
+            <artifactId>platform-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.okcrm</groupId>
+            <artifactId>platform-tenant</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.okcrm</groupId>
+            <artifactId>platform-mybatis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.okcrm</groupId>
+            <artifactId>platform-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.okcrm</groupId>
+            <artifactId>platform-web</artifactId>
+        </dependency>
+
+        <!-- 基础设施 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.modulith</groupId>
+            <artifactId>spring-modulith-starter-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-mysql</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- 测试 -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.modulith</groupId>
+            <artifactId>spring-modulith-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>ok-crm</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>com.okcrm.CrmBootApplication</mainClass>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <!--
+      按模块独立售卖的核心机制：用 Maven profile 决定打进交付包的模块组合。
+      显式激活任意 edition 会关闭 activeByDefault 的 full，因此不需要写「排除」逻辑。
+
+        mvn -pl apps/crm-boot -am package                 -> full（默认，全部模块）
+        mvn -pl apps/crm-boot -am package -Pedition-basic  -> 基础版：组织 + 客户
+        mvn -pl apps/crm-boot -am package -Pedition-pro    -> 专业版：基础版 + 公海池
+    -->
+    <profiles>
+        <profile>
+            <id>full</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>com.okcrm</groupId>
+                    <artifactId>module-tenant</artifactId>
+                </dependency>
+                <dependency>
+                    <groupId>com.okcrm</groupId>
+                    <artifactId>module-iam</artifactId>
+                </dependency>
+                <dependency>
+                    <groupId>com.okcrm</groupId>
+                    <artifactId>module-customer</artifactId>
+                </dependency>
+                <dependency>
+                    <groupId>com.okcrm</groupId>
+                    <artifactId>module-pool</artifactId>
+                </dependency>
+            </dependencies>
+        </profile>
+
+        <profile>
+            <id>edition-basic</id>
+            <dependencies>
+                <dependency>
+                    <groupId>com.okcrm</groupId>
+                    <artifactId>module-tenant</artifactId>
+                </dependency>
+                <dependency>
+                    <groupId>com.okcrm</groupId>
+                    <artifactId>module-iam</artifactId>
+                </dependency>
+                <dependency>
+                    <groupId>com.okcrm</groupId>
+                    <artifactId>module-customer</artifactId>
+                </dependency>
+            </dependencies>
+        </profile>
+
+        <profile>
+            <id>edition-pro</id>
+            <dependencies>
+                <dependency>
+                    <groupId>com.okcrm</groupId>
+                    <artifactId>module-tenant</artifactId>
+                </dependency>
+                <dependency>
+                    <groupId>com.okcrm</groupId>
+                    <artifactId>module-iam</artifactId>
+                </dependency>
+                <dependency>
+                    <groupId>com.okcrm</groupId>
+                    <artifactId>module-customer</artifactId>
+                </dependency>
+                <dependency>
+                    <groupId>com.okcrm</groupId>
+                    <artifactId>module-pool</artifactId>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
+</project>
