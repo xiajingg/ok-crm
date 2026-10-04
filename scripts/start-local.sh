@@ -124,7 +124,8 @@ echo "────────────────────────�
 echo " 管理后台   http://localhost:${FRONTEND_PORT}"
 echo " 接口文档   http://127.0.0.1:${BACKEND_PORT}/api/swagger-ui.html"
 echo " 默认账号   admin / admin123456"
-if [ "$PROFILE" = "mysql" ]; then
+# 注意判断的是 MODE 而不是 PROFILE：mysql 模式下 profile 用的是 dev
+if [ "$MODE" = "mysql" ]; then
   echo " 数据库     MySQL ok_crm（${DB_HOST:-127.0.0.1}:${DB_PORT:-3306}）"
 else
   echo " 数据库     嵌入式 H2（./data/，重启不丢）"
