@@ -52,6 +52,9 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      # 容器内固定监听 8080：web/nginx.conf 的 proxy_pass 指向 crm-server:8080。
+      # 想改对外端口改下面的 BACKEND_PORT（宿主机侧映射），不要动这里。
+      SERVER_PORT: 8080
       DB_HOST: mysql
       DB_PORT: 3306
       DB_NAME: ok_crm
@@ -61,7 +64,7 @@ services:
       REDIS_PORT: 6379
       JWT_SECRET: ${JWT_SECRET:-please-change-this-secret-in-production-at-least-32-bytes}
     ports:
-      - "${SERVER_PORT:-8080}:8080"
+      - "${BACKEND_PORT:-9001}:8080"
 
   crm-web:
     profiles: ["app"]

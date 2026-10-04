@@ -193,19 +193,19 @@ mysql -uroot -p -e "CREATE DATABASE ok_crm DEFAULT CHARACTER SET utf8mb4 COLLATE
 # 1. 打包
 mvn -B -DskipTests package -pl apps/crm-boot -am
 
-# 2. 以 demo profile 启动（注意换端口：8080 常被别的程序占用）
-java -jar apps/crm-boot/target/ok-crm.jar --spring.profiles.active=demo --server.port=18080
+# 2. 以 demo profile 启动（默认端口 9001，被占用时用 --server.port 换）
+java -jar apps/crm-boot/target/ok-crm.jar --spring.profiles.active=demo
 
 # 3. 前端（另开一个终端）
 cd web && npm install
-VITE_API_TARGET=http://127.0.0.1:18080 npm run dev
+VITE_API_TARGET=http://127.0.0.1:9001 npm run dev
 ```
 
 打开 http://localhost:5173 ，用 `admin` / `admin123456` 以**平台管理端**登录 → 「租户管理」开通一个企业 → 再用同一组账号以**企业登录**进入。
 
 > 想从零开始：删掉 `data/` 目录即可（里面只有一个本地 H2 库文件）。
 >
-> 后端启动后也可以直接看接口文档：http://localhost:18080/api/swagger-ui.html
+> 后端启动后也可以直接看接口文档：http://localhost:9001/api/swagger-ui.html
 
 ### 方式一：Docker Compose（完整环境）
 
@@ -273,17 +273,23 @@ cd web && npm install && npm run dev
 
 ## 常见问题
 
-**端口 8080 被占用** —— 开发机上经常有别的 Java 程序占着 8080。先查是谁：
+**端口被占用** —— 后端默认端口是 **9001**。开发机上常有别的程序占着它（比如 rustfs 会占 9000/9001）。先查是谁：
 
 ```bash
-lsof -i:8080
+lsof -i:9001
 ```
 
 换端口启动，并让前端代理跟着改：
 
 ```bash
-java -jar apps/crm-boot/target/ok-crm.jar --spring.profiles.active=demo --server.port=18080
-VITE_API_TARGET=http://127.0.0.1:18080 npm run dev
+java -jar apps/crm-boot/target/ok-crm.jar --spring.profiles.active=demo --server.port=9002
+VITE_API_TARGET=http://127.0.0.1:9002 npm run dev
+```
+
+用启动脚本时更简单，它会自己检查端口并把占用进程打出来：
+
+```bash
+BACKEND_PORT=9002 ./scripts/start-local.sh mysql
 ```
 
 > ⚠️ 不要用 `pkill -f java` 清端口 —— 会连带杀掉机器上其它 Java 程序。
@@ -328,7 +334,7 @@ redis-cli CONFIG SET stop-writes-on-bgsave-error no
 
 ## 接口文档
 
-后端启动后访问 **http://localhost:8080/api/swagger-ui.html**
+后端启动后访问 **http://localhost:9001/api/swagger-ui.html**
 
 调用顺序：`POST /api/auth/platform-login` 或 `POST /api/auth/login` 拿 token → 右上角 Authorize 填入 → 之后所有请求自动带 `Authorization` 头。
 

@@ -29,7 +29,7 @@
 | `DB_HOST` / `DB_PORT` / `DB_NAME` | `127.0.0.1` / `3306` / `ok_crm` | 数据库连接 |
 | `DB_USERNAME` / `DB_PASSWORD` | `root` / 空 | 数据库账号 |
 | `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` | `127.0.0.1` / `6379` / 空 | Redis 连接 |
-| `SERVER_PORT` | `8080` | 后端端口 |
+| `BACKEND_PORT` | `9001` | 后端端口（本机脚本与 Docker 宿主机映射都用它） |
 | `POOL_RECYCLE_ENABLED` | `true` | 是否启用公海自动回收定时任务 |
 | `POOL_RECYCLE_CRON` | `0 0 2 * * ?` | 回收任务执行时间 |
 | `PLATFORM_ADMIN_ENABLED` | `true` | 是否开放平台超管登录入口 |
@@ -46,7 +46,7 @@
 
 ```bash
 mvn -B -DskipTests package -pl apps/crm-boot -am
-java -jar apps/crm-boot/target/ok-crm.jar --spring.profiles.active=demo --server.port=18080
+java -jar apps/crm-boot/target/ok-crm.jar --spring.profiles.active=demo
 ```
 
 配置见 `apps/crm-boot/src/main/resources/application-demo.yml`，要点：

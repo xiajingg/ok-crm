@@ -21,7 +21,9 @@ spring:
       timeout: 3s
 
 server:
-  port: ${SERVER_PORT:8080}
+  # 默认 9001。本机 8080 常被其它程序占用，且 9000/9001 被 rustfs 占用时
+  # 可用环境变量覆盖：SERVER_PORT=9002 java -jar ...
+  port: ${SERVER_PORT:9001}
   servlet:
     context-path: /api
   shutdown: graceful

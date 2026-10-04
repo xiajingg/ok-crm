@@ -11,14 +11,15 @@
 #   2. 仓库根目录的 .env.local（该文件已被 .gitignore 忽略，不会进版本库）
 #
 # 其它可用环境变量：
-#   BACKEND_PORT  后端端口，默认 18080（8080 常被其它程序占用）
+#   BACKEND_PORT  后端端口，默认 9001（注意：本机 9000/9001 可能被 rustfs 占用，
+#                 被占用时脚本会直接报出来，换一个即可，例如 BACKEND_PORT=9002）
 #   FRONTEND_PORT 前端端口，默认 5173
 #
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MODE="${1:-mysql}"
-BACKEND_PORT="${BACKEND_PORT:-18080}"
+BACKEND_PORT="${BACKEND_PORT:-9001}"
 FRONTEND_PORT="${FRONTEND_PORT:-5173}"
 JAR="$ROOT/apps/crm-boot/target/ok-crm.jar"
 
@@ -46,7 +47,7 @@ fi
 if lsof -ti:"$BACKEND_PORT" >/dev/null 2>&1; then
   echo "❌ 端口 $BACKEND_PORT 已被占用，占用进程："
   lsof -i:"$BACKEND_PORT" | tail -n +2
-  echo "   换端口：BACKEND_PORT=18081 $0 $MODE"
+  echo "   换端口：BACKEND_PORT=9002 $0 $MODE"
   exit 1
 fi
 
