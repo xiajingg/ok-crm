@@ -1,0 +1,80 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: okcrm-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-okcrm123456}
+      MYSQL_DATABASE: ok_crm
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+08:00
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - okcrm-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p${MYSQL_ROOT_PASSWORD:-okcrm123456}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: okcrm-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - okcrm-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # 以下两个服务默认不启动。需要整套容器化运行时执行：
+  #   docker compose --profile app up -d --build
+  crm-server:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: apps/crm-boot/Dockerfile
+    container_name: okcrm-server
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ok_crm
+      DB_USERNAME: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-okcrm123456}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:-please-change-this-secret-in-production-at-least-32-bytes}
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+
+  crm-web:
+    profiles: ["app"]
+    build:
+      context: web
+      dockerfile: Dockerfile
+    container_name: okcrm-web
+    restart: unless-stopped
+    depends_on:
+      - crm-server
+    ports:
+      - "${WEB_PORT:-80}:80"
+
+volumes:
+  okcrm-mysql-data:
+  okcrm-redis-data:
