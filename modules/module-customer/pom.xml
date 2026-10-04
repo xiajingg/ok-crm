@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.okcrm</groupId>
+        <artifactId>ok-crm</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>module-customer</artifactId>
+    <name>module-customer</name>
+    <description>【可售卖模块】客户、联系人、跟进记录、客户归属与分配</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.okcrm</groupId>
+            <artifactId>platform-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.okcrm</groupId>
+            <artifactId>platform-tenant</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.okcrm</groupId>
+            <artifactId>platform-mybatis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.okcrm</groupId>
+            <artifactId>platform-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.okcrm</groupId>
+            <artifactId>platform-web</artifactId>
+        </dependency>
+        <!-- 客户归属需要校验员工是否存在、是否在职 -->
+        <dependency>
+            <groupId>com.okcrm</groupId>
+            <artifactId>module-iam</artifactId>
+        </dependency>
+    </dependencies>
+</project>
