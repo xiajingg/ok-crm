@@ -4,11 +4,15 @@
 
 | 组件 | 版本 | 说明 |
 |---|---|---|
-| JDK | 21+ | 编译与运行 |
+| JDK | 21+ | 编译与运行。**必须是 21 或更高**，用 17 启动会报 `UnsupportedClassVersionError`（class 65.0 vs 61.0） |
 | MySQL | 8.0+ | 必须 `utf8mb4`，时区建议 `+08:00` |
 | Redis | 7+ | 可选；生产多实例部署时建议启用 |
 | Node.js | 20+ | 仅前端构建需要 |
 | Nginx | 任意 | 前端静态资源与接口转发 |
+
+> ⚠️ **JDK 版本容易踩的坑**：`java` 用哪个版本由 `JAVA_HOME` 决定。
+> conda / jenv 等多版本管理工具经常把它指到旧版本，表现为「我明明装了 21 却报版本过低」。
+> 启动脚本会自动挑 Java 21+ 并打印实际使用的路径；手动启动请先 `export JAVA_HOME=$(/usr/libexec/java_home -v 21)`。
 
 ---
 

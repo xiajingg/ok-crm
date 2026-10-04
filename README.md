@@ -273,6 +273,24 @@ cd web && npm install && npm run dev
 
 ## 常见问题
 
+**`UnsupportedClassVersionError`（class file version 65.0 vs 61.0）** —— 你的 `java` 版本太旧。
+
+本项目编译目标是 **Java 21**（class 65.0）；用 Java 17（class 61.0）启动就会报这个。
+`java` 实际用哪个版本由 `JAVA_HOME` 决定，而 **conda / jenv 这类多版本管理工具经常把它指到旧版本**：
+
+```bash
+echo $JAVA_HOME
+java -version
+```
+
+启动脚本会自动跳过过旧的 JDK、优先挑 Java 21+，并把挑中的路径打印出来（`Java：/.../jdk-21.jdk/...`）。
+手动启动时显式指定即可：
+
+```bash
+export JAVA_HOME=$(/usr/libexec/java_home -v 21)
+java -jar apps/crm-boot/target/ok-crm.jar --spring.profiles.active=demo
+```
+
 **端口被占用** —— 后端默认端口是 **9001**。开发机上常有别的程序占着它（比如 rustfs 会占 9000/9001）。先查是谁：
 
 ```bash

@@ -38,6 +38,67 @@ if [ ! -f "$JAR" ]; then
   exit 1
 fi
 
+# ---------- 选择 Java：本项目编译目标是 Java 21 ----------
+# 不能直接用裸 java：多版本管理工具（conda、jenv 等）常把 JAVA_HOME 指到旧版本，
+# 用旧版本启动会报 UnsupportedClassVersionError（class 65.0 vs 61.0），而且报错信息很难懂。
+REQUIRED_JAVA_MAJOR=21
+
+java_major_version() {
+  "$1" -version 2>&1 | head -1 | sed -E 's/.*version "([0-9]+).*/\1/'
+}
+
+pick_java_bin() {
+  # 1) JAVA_HOME 里的版本够新就用它
+  if [ -n "${JAVA_HOME:-}" ] && [ -x "$JAVA_HOME/bin/java" ]; then
+    if [ "$(java_major_version "$JAVA_HOME/bin/java")" -ge "$REQUIRED_JAVA_MAJOR" ] 2>/dev/null; then
+      echo "$JAVA_HOME/bin/java"
+      return 0
+    fi
+  fi
+
+  # 2) 用 macOS 自带工具找：先精确匹配编译目标版本，再放宽到 21+
+  if [ -x /usr/libexec/java_home ]; then
+    for spec in "$REQUIRED_JAVA_MAJOR" "${REQUIRED_JAVA_MAJOR}+"; do
+      home="$(/usr/libexec/java_home -v "$spec" 2>/dev/null || true)"
+      if [ -n "$home" ] && [ -x "$home/bin/java" ]; then
+        echo "$home/bin/java"
+        return 0
+      fi
+    done
+  fi
+
+  # 3) 兜底：扫一遍常见安装目录
+  find /Library/Java/JavaVirtualMachines "$HOME/Library/Java/JavaVirtualMachines" \
+       -maxdepth 3 -name Home -type d 2>/dev/null | while IFS= read -r home; do
+    [ -x "$home/bin/java" ] || continue
+    if [ "$(java_major_version "$home/bin/java")" -ge "$REQUIRED_JAVA_MAJOR" ] 2>/dev/null; then
+      echo "$home/bin/java"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+JAVA_BIN="$(pick_java_bin || true)"
+if [ -z "$JAVA_BIN" ]; then
+  echo "❌ 找不到 Java ${REQUIRED_JAVA_MAJOR} 或更高版本，无法启动"
+  echo ""
+  echo "   当前 PATH 上的 java ：$(java -version 2>&1 | head -1)"
+  echo "   当前 JAVA_HOME      ：${JAVA_HOME:-（未设置）}"
+  echo ""
+  echo "   本项目编译目标是 Java ${REQUIRED_JAVA_MAJOR}。用低版本启动会报："
+  echo "   UnsupportedClassVersionError（class file version 65.0 vs 61.0）"
+  echo ""
+  echo "   本机已安装的 JDK："
+  /usr/libexec/java_home -V 2>&1 | sed 's/^/     /' | head -8
+  echo ""
+  echo "   解决办法（任选其一）："
+  echo "     export JAVA_HOME=\$(/usr/libexec/java_home -v ${REQUIRED_JAVA_MAJOR})"
+  echo "     JAVA_HOME=/path/to/jdk-21 $0 $MODE"
+  exit 1
+fi
+
 if [ ! -d "$ROOT/web/node_modules" ]; then
   echo "❌ 前端依赖未安装"
   echo "   先安装：cd web && npm install"
@@ -100,25 +161,34 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 echo "▶ 后端：profile=${PROFILE}  端口=${BACKEND_PORT}  缓存=${CACHE_MODE}"
+echo "  Java：${JAVA_BIN}"
 # shellcheck disable=SC2086
-java -jar "$JAR" --spring.profiles.active="$PROFILE" --server.port="$BACKEND_PORT" $EXTRA_ARGS &
+"$JAVA_BIN" -jar "$JAR" --spring.profiles.active="$PROFILE" --server.port="$BACKEND_PORT" $EXTRA_ARGS &
 BACKEND_PID=$!
 
 # 等后端就绪
 echo -n "  等待后端就绪"
+BACKEND_READY=0
 for _ in $(seq 1 60); do
   if curl -fsS -m 2 "http://127.0.0.1:$BACKEND_PORT/api/actuator/health" >/dev/null 2>&1; then
     echo " ✅"
+    BACKEND_READY=1
     break
   fi
   if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
     echo ""
-    echo "❌ 后端进程已退出，请检查上面的日志"
+    echo "❌ 后端进程已退出，请看上方的启动日志"
     exit 1
   fi
   echo -n "."
   sleep 1
 done
+
+if [ "$BACKEND_READY" -ne 1 ]; then
+  echo ""
+  echo "❌ 等待 60 秒后端仍未就绪，请看上方的启动日志"
+  exit 1
+fi
 
 echo ""
 echo "──────────────────────────────────────────────"
