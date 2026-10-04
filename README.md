@@ -292,6 +292,38 @@ VITE_API_TARGET=http://127.0.0.1:18080 npm run dev
 
 **权限校验看起来没生效** —— 把 `logging.level.com.okcrm` 设为 `debug`，每次权限校验都会打印 `权限校验: employeeId=..., code=..., granted=...`。如果日志里 `granted=false` 但接口仍返回 200，说明有兜底异常处理器吞掉了 `AccessDeniedException`（`SecurityExceptionAdvice` 必须保持最高优先级）。
 
+**Redis 报 MISCONF / 接口变慢但不错** —— 典型报错：
+
+```
+MISCONF Redis is configured to save RDB snapshots, but it's currently unable to persist to disk.
+Commands that may modify the data set are disabled (stop-writes-on-bgsave-error option)
+```
+
+这是 Redis 自己写盘失败后**拒绝所有写命令**，跟本应用无关（读命令仍可用，所以业务不会挂）。
+
+应用的应对是**缓存降级**：`CacheConfig` 里的 `CacheErrorHandler` 会把缓存读写失败降级为「直接查库」，
+只在日志里留 WARN/ERROR，接口照常返回正确结果 —— 缓存是优化，不是正确性依赖。
+
+排查 Redis 侧：
+
+```bash
+# 1. 看 Redis 的工作目录配置（为空或指向不存在的目录就是它的问题）
+redis-cli CONFIG GET dir
+
+# 2. 看最近一次快照是否成功
+redis-cli INFO persistence | grep rdb_last_bgsave_status
+
+# 3. 临时放开写限制（Redis 重启后失效；仅建议用于「只当缓存用」的实例）
+redis-cli CONFIG SET stop-writes-on-bgsave-error no
+```
+
+根治：确保 `dir` 指向一个存在的可写目录（Homebrew 默认 `/opt/homebrew/var/db/redis`），
+或干脆给缓存实例关掉 RDB 持久化（`save ""`）。
+
+> 另外注意：应用日志里出现 `缓存读取失败，已降级为直接查库` 说明缓存**没在生效**。
+> 这时要看具体原因 —— 本项目踩过一次 `GenericJackson2JsonRedisSerializer`
+> 对 `Set<String>` 「写得进读不出」的坑，因此值序列化改用 JDK 序列化。
+
 ---
 
 ## 接口文档

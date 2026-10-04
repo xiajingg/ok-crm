@@ -51,6 +51,10 @@ if lsof -ti:"$BACKEND_PORT" >/dev/null 2>&1; then
 fi
 
 # ---------- 组装后端启动参数 ----------
+# 用字符串而不是数组：bash 3.2（macOS 自带）在 set -u 下展开空数组会报 unbound variable
+EXTRA_ARGS=""
+CACHE_MODE=""
+
 case "$MODE" in
   mysql)
     if [ -z "${DB_PASSWORD:-}" ]; then
@@ -60,9 +64,20 @@ case "$MODE" in
       exit 1
     fi
     PROFILE=dev
+
+    # 检测到 Redis 就用 Redis 缓存 + Redis 分布式锁（更接近生产）；
+    # 检测不到就退回进程内实现，功能一致，只是不支持多实例。
+    REDIS_PORT="${REDIS_PORT:-6379}"
+    if nc -z -w 1 127.0.0.1 "$REDIS_PORT" >/dev/null 2>&1; then
+      CACHE_MODE="Redis（127.0.0.1:${REDIS_PORT}）"
+      EXTRA_ARGS="--spring.cache.type=redis --spring.data.redis.host=127.0.0.1 --spring.data.redis.port=${REDIS_PORT}"
+    else
+      CACHE_MODE="进程内（未检测到 Redis，不影响功能）"
+    fi
     ;;
   demo)
     PROFILE=demo
+    CACHE_MODE="进程内"
     ;;
   *)
     echo "❌ 未知模式：${MODE}（可选：mysql / demo）"
@@ -83,8 +98,9 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-echo "▶ 后端：profile=$PROFILE  端口=$BACKEND_PORT"
-java -jar "$JAR" --spring.profiles.active="$PROFILE" --server.port="$BACKEND_PORT" &
+echo "▶ 后端：profile=${PROFILE}  端口=${BACKEND_PORT}  缓存=${CACHE_MODE}"
+# shellcheck disable=SC2086
+java -jar "$JAR" --spring.profiles.active="$PROFILE" --server.port="$BACKEND_PORT" $EXTRA_ARGS &
 BACKEND_PID=$!
 
 # 等后端就绪
@@ -113,6 +129,7 @@ if [ "$PROFILE" = "mysql" ]; then
 else
   echo " 数据库     嵌入式 H2（./data/，重启不丢）"
 fi
+echo " 缓存       ${CACHE_MODE}"
 echo ""
 echo " ⚠ 访问后台请用 localhost，不要用 127.0.0.1 ——"
 echo "   Vite 默认只监听 IPv6 的 localhost。"
