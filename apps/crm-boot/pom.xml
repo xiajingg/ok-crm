@@ -61,12 +61,21 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- 测试 -->
+        <!--
+          H2 同时用于两件事：
+          1. 集成测试的内存库（不需要 MySQL / Redis 就能跑全部用例）
+          2. demo profile 的本地嵌入式库（数据落在 ./data/，重启不丢）
+          用 runtime 作用域而不是 test，是为了让打包出来的 jar 也能直接
+          以 demo profile 启动，给客户演示时不需要先装 MySQL。
+          生产环境用不到它，不会加载。
+        -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
-            <scope>test</scope>
+            <scope>runtime</scope>
         </dependency>
+
+        <!-- 测试 -->
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-test</artifactId>

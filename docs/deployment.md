@@ -40,6 +40,21 @@
 
 ## 3. 部署方式
 
+### 3.0 零依赖体验模式（demo profile）
+
+不需要 MySQL / Redis，用嵌入式 H2 文件库，数据落在 `./data/`（重启不丢）。适合本地试用与客户演示：
+
+```bash
+mvn -B -DskipTests package -pl apps/crm-boot -am
+java -jar apps/crm-boot/target/ok-crm.jar --spring.profiles.active=demo --server.port=18080
+```
+
+配置见 `apps/crm-boot/src/main/resources/application-demo.yml`，要点：
+
+- 关闭了公海自动回收定时任务，避免演示过程中数据自己变化（要验证回收就用「立即执行一次回收」）
+- 默认凭据与 dev 一致（`admin` / `admin123456`），**仅限本地**
+- **绝不要用于生产**：H2 是单文件嵌入式库，不支持并发写入扩展，也没有备份与主从
+
 ### 3.1 Docker Compose 一键部署
 
 ```bash

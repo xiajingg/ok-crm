@@ -149,7 +149,29 @@ mvn -pl apps/crm-boot -am package -Pedition-pro
 
 ## 快速开始
 
-### 方式一：Docker Compose（推荐）
+### 方式零：零依赖体验（最快，不需要 MySQL / Redis）
+
+适合本地试用、给客户演示、录屏。用的是嵌入式 H2 文件库，数据落在 `./data/`，重启不丢。
+
+```bash
+# 1. 打包
+mvn -B -DskipTests package -pl apps/crm-boot -am
+
+# 2. 以 demo profile 启动（注意换端口：8080 常被别的程序占用）
+java -jar apps/crm-boot/target/ok-crm.jar --spring.profiles.active=demo --server.port=18080
+
+# 3. 前端（另开一个终端）
+cd web && npm install
+VITE_API_TARGET=http://127.0.0.1:18080 npm run dev
+```
+
+打开 http://localhost:5173 ，用 `admin` / `admin123456` 以**平台管理端**登录 → 「租户管理」开通一个企业 → 再用同一组账号以**企业登录**进入。
+
+> 想从零开始：删掉 `data/` 目录即可（里面只有一个本地 H2 库文件）。
+>
+> 后端启动后也可以直接看接口文档：http://localhost:18080/api/swagger-ui.html
+
+### 方式一：Docker Compose（完整环境）
 
 ```bash
 git clone <repo-url> ok-crm && cd ok-crm
@@ -210,6 +232,29 @@ cd web && npm install && npm run dev
 4. 「客户管理」新增一个客户，负责人留空 → 客户进入公海池
 5. 「公海池」里领取该客户 → 客户归属到你名下，「流转日志」里出现一条领取记录
 6. 「公海池 → 回收规则」启用自动回收、天数设为 1、口径设为「按创建时间」→ 点「立即执行一次回收」→ 客户被打回公海，日志里出现 RECYCLE
+
+---
+
+## 常见问题
+
+**端口 8080 被占用** —— 开发机上经常有别的 Java 程序占着 8080。先查是谁：
+
+```bash
+lsof -i:8080
+```
+
+换端口启动，并让前端代理跟着改：
+
+```bash
+java -jar apps/crm-boot/target/ok-crm.jar --spring.profiles.active=demo --server.port=18080
+VITE_API_TARGET=http://127.0.0.1:18080 npm run dev
+```
+
+> ⚠️ 不要用 `pkill -f java` 清端口 —— 会连带杀掉机器上其它 Java 程序。
+
+**接口返回 401 但令牌明明是对的** —— 检查请求路径有没有重复带 context-path。后端 `server.servlet.context-path` 是 `/api`，所以完整地址是 `/api/auth/login`，不要再拼一次。
+
+**权限校验看起来没生效** —— 把 `logging.level.com.okcrm` 设为 `debug`，每次权限校验都会打印 `权限校验: employeeId=..., code=..., granted=...`。如果日志里 `granted=false` 但接口仍返回 200，说明有兜底异常处理器吞掉了 `AccessDeniedException`（`SecurityExceptionAdvice` 必须保持最高优先级）。
 
 ---
 
