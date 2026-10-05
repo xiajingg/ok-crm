@@ -1,6 +1,11 @@
-import { del, get, post, put } from './request'
-import type { PageResult } from '@/types'
+import { get, put } from './request'
 
+/**
+ * 企业设置。
+ *
+ * 单企业私有化部署：一套系统只服务一个企业，因此这里只有「当前企业」，
+ * 不再有开通、停用、分页管理这些多租户运营接口。
+ */
 export interface TenantRow {
   id: number
   code: string
@@ -11,14 +16,13 @@ export interface TenantRow {
   currency?: string
   contactName?: string
   contactPhone?: string
-  expireDate?: string
   status: number
   statusLabel: string
   createdAt: string
 }
 
+/** 可修改的企业信息（企业编码不可改） */
 export interface TenantForm {
-  code?: string
   name?: string
   region?: string
   regionName?: string
@@ -26,68 +30,17 @@ export interface TenantForm {
   currency?: string
   contactName?: string
   contactPhone?: string
-  expireDate?: string
-  modules?: string[]
 }
 
-export interface ModuleRow {
-  moduleKey: string
-  name: string
-  description?: string
-  version?: string
-  core?: boolean
-  sortOrder?: number
-  licensed: boolean
-  expireDate?: string
-}
-
-export function pageTenants(params: { keyword?: string; pageNum?: number; pageSize?: number }) {
-  return get<PageResult<TenantRow>>('/platform/tenants', params)
-}
-
-export function createTenant(data: TenantForm) {
-  return post<TenantRow>('/platform/tenants', data)
-}
-
-export function updateTenant(id: number, data: TenantForm) {
-  return put<TenantRow>(`/platform/tenants/${id}`, data)
-}
-
-export function changeTenantStatus(id: number, enabled: boolean) {
-  return put<void>(`/platform/tenants/${id}/status`, null, { enabled })
-}
-
-export function getTenantConfig(id: number) {
-  return get<Record<string, string>>(`/platform/tenants/${id}/config`)
-}
-
-export function updateTenantConfig(id: number, configs: Record<string, string>) {
-  return put<void>(`/platform/tenants/${id}/config`, { configs })
-}
-
-/** 模块目录（产品价目表） */
-export function fetchModuleCatalog() {
-  return get<ModuleRow[]>('/platform/modules/catalog')
-}
-
-/** 某租户的模块授权明细 */
-export function fetchTenantModules(tenantId: number) {
-  return get<ModuleRow[]>(`/platform/modules/tenant/${tenantId}`)
-}
-
-export function grantModules(tenantId: number, data: { moduleKeys: string[]; expireDate?: string; remark?: string }) {
-  return post<void>(`/platform/modules/tenant/${tenantId}/grant`, data)
-}
-
-export function revokeModule(tenantId: number, moduleKey: string) {
-  return del<void>(`/platform/modules/tenant/${tenantId}/${moduleKey}`)
-}
-
-/** 当前租户信息与已购模块 */
 export function fetchCurrentTenant() {
   return get<TenantRow>('/tenants/current')
 }
 
+export function updateCurrentTenant(data: TenantForm) {
+  return put<TenantRow>('/tenants/current', data)
+}
+
+/** 本部署已启用的模块 */
 export function fetchCurrentModules() {
   return get<string[]>('/tenants/current/modules')
 }

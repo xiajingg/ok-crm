@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * 租户查询服务 —— 其它模块访问租户信息的唯一入口。
+ * 企业信息查询服务 —— 其它模块访问企业信息的唯一入口。
  *
  * <p>实现内部会自行处理租户上下文，调用方不需要（也不应该）先设置上下文。</p>
  */
@@ -15,18 +15,20 @@ public interface TenantQueryService {
     Optional<TenantBrief> findByCode(String tenantCode);
 
     /**
-     * 租户是否存在且处于启用状态。登录与业务入口的校验点。
+     * 取当前部署所属的企业。
+     *
+     * <p>单企业私有化部署下只有一个企业：优先按 {@code okcrm.setup.tenant-id} 取，
+     * 取不到时退化为「库里唯一的那条记录」。取不到说明初始化没做，调用方应给出明确提示。</p>
+     */
+    Optional<TenantBrief> findCurrentDeploymentTenant();
+
+    /**
+     * 企业是否存在且处于启用状态。
      */
     boolean isEnabled(Long tenantId);
 
     /**
-     * 全部租户列表（平台超管用）。
+     * 全部企业列表。单企业部署下通常只有一条。
      */
     List<TenantBrief> findAll();
-
-    /**
-     * 启用中的租户列表。登录页用它渲染「选择企业」下拉框，
-     * 只暴露编码与名称等最小信息。
-     */
-    List<TenantBrief> listEnabledForLogin();
 }

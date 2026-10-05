@@ -5,7 +5,6 @@ import com.okcrm.modules.tenant.domain.ModuleInfo;
 import com.okcrm.modules.tenant.domain.TenantModule;
 import com.okcrm.modules.tenant.infra.mapper.ModuleInfoMapper;
 import com.okcrm.modules.tenant.infra.mapper.TenantModuleMapper;
-import com.okcrm.modules.tenant.internal.dto.ModuleResponse;
 import com.okcrm.platform.common.enums.EnableStatus;
 import com.okcrm.platform.security.spi.ModuleLicenseProvider;
 import com.okcrm.platform.tenant.TenantContext;
@@ -18,10 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.Collection;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -155,62 +151,16 @@ public class TenantModuleService implements ModuleLicenseProvider {
     }
 
     /**
-     * 产品价目表：全部已注册的可售卖模块。
-     */
-    public List<ModuleResponse> listCatalog() {
-        return moduleInfoMapper.selectList(Wrappers.<ModuleInfo>lambdaQuery()
-                        .orderByAsc(ModuleInfo::getSortOrder))
-                .stream()
-                .map(info -> toResponse(info, false, null))
-                .toList();
-    }
-
-    /**
-     * 某租户的授权明细：价目表 + 该租户是否已授权。
-     */
-    public List<ModuleResponse> listLicensedDetail(Long tenantId) {
-        Set<String> licensed = licensedModules(tenantId);
-
-        Map<String, LocalDate> expireMap = TenantContext.callAs(tenantId, () -> tenantModuleMapper.selectList(
-                        Wrappers.<TenantModule>lambdaQuery())
-                .stream()
-                .collect(Collectors.toMap(TenantModule::getModuleKey, row ->
-                        row.getExpireDate() == null ? LocalDate.MAX : row.getExpireDate(),
-                        (a, b) -> a, LinkedHashMap::new)));
-
-        return moduleInfoMapper.selectList(Wrappers.<ModuleInfo>lambdaQuery()
-                        .orderByAsc(ModuleInfo::getSortOrder))
-                .stream()
-                .sorted(Comparator.comparing(ModuleInfo::getSortOrder, Comparator.nullsLast(Comparator.naturalOrder())))
-                .map(info -> {
-                    LocalDate expire = expireMap.get(info.getModuleKey());
-                    return toResponse(info, licensed.contains(info.getModuleKey()),
-                            expire == LocalDate.MAX ? null : expire);
-                })
-                .toList();
-    }
-
-    /**
-     * 开通租户时按需授权；{@code moduleKeys} 为空表示授权全部已注册模块。
+     * 部署初始化时授权模块；{@code moduleKeys} 为空表示授权全部已注册模块。
+     *
+     * <p>「已注册模块」指 {@code sys_module} 里存在的模块 —— 被编译期裁剪掉的模块
+     * 不会出现在这里，因此本部署只可能授权到实际包含的模块。</p>
      */
     public void grantForNewTenant(Long tenantId, Collection<String> moduleKeys) {
         List<String> targets = (moduleKeys == null || moduleKeys.isEmpty())
                 ? moduleInfoMapper.selectList(Wrappers.<ModuleInfo>lambdaQuery())
                 .stream().map(ModuleInfo::getModuleKey).toList()
                 : List.copyOf(moduleKeys);
-        grant(tenantId, targets, null, "开通租户默认授权");
-    }
-
-    private ModuleResponse toResponse(ModuleInfo info, boolean licensed, LocalDate expireDate) {
-        return new ModuleResponse(
-                info.getModuleKey(),
-                info.getName(),
-                info.getDescription(),
-                info.getVersion(),
-                info.getCore(),
-                info.getSortOrder(),
-                licensed,
-                expireDate
-        );
+        grant(tenantId, targets, null, "部署初始化默认授权");
     }
 }

@@ -33,15 +33,17 @@ okcrm:
     # 仅供本地体验；生产必须通过环境变量 JWT_SECRET 覆盖
     secret: demo-only-secret-key-please-do-not-use-in-production
     expire-minutes: 720
-  platform-admin:
+  # 体验模式固定用 admin/admin123456，方便直接登录看界面
+  setup:
     enabled: true
-    username: admin
-    password: admin123456
-    real-name: 平台管理员
-  tenant-provisioning:
-    default-admin-username: admin
-    default-admin-password: admin123456
-    default-admin-real-name: 系统管理员
+    tenant-id: 1
+    tenant-code: demo
+    tenant-name: 演示企业
+    region: CN-HUBEI
+    region-name: 湖北
+    admin:
+      username: admin
+      password: admin123456
   pool:
     # 演示时关掉定时回收，避免数据在演示过程中自动变化；
     # 需要验证回收功能时用「公海池 → 回收规则 → 立即执行一次回收」

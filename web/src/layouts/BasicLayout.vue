@@ -48,7 +48,7 @@
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item disabled>
-                  企业：{{ store.tenant?.name || '平台管理端' }}
+                  企业：{{ store.tenant?.name || '未设置企业' }}
                 </el-dropdown-item>
                 <el-dropdown-item disabled>
                   账号：{{ store.user?.username }}
@@ -79,7 +79,7 @@ const route = useRoute()
 
 const activeMenu = computed(() => route.path)
 const currentTitle = computed(() => (route.meta.title as string) || '')
-const tenantName = computed(() => store.tenant?.name || (store.isPlatformAdmin ? '平台管理端' : '未选择企业'))
+const tenantName = computed(() => store.tenant?.name || '未设置企业')
 
 const MODULE_LABELS: Record<string, string> = {
   tenant: '租户与地区',

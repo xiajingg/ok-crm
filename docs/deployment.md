@@ -23,8 +23,7 @@
 | 变量 | 说明 | 不设置的后果 |
 |---|---|---|
 | `JWT_SECRET` | JWT 签名密钥，**至少 32 字节** | 使用默认值 → 任何人都能伪造令牌 |
-| `PLATFORM_ADMIN_PASSWORD` | 平台超管密码 | 默认 `admin123456` → 平台管理端可被登录 |
-| `TENANT_ADMIN_PASSWORD` | 新开通租户的默认管理员密码 | 同上 |
+| `ADMIN_PASSWORD` | 初始管理员密码 | **留空反而更安全** —— 会生成随机强密码并打印到启动日志；配了固定值则所有客户初始密码相同 |
 
 其余常用变量：
 
@@ -36,7 +35,18 @@
 | `BACKEND_PORT` | `9001` | 后端端口（本机脚本与 Docker 宿主机映射都用它） |
 | `POOL_RECYCLE_ENABLED` | `true` | 是否启用公海自动回收定时任务 |
 | `POOL_RECYCLE_CRON` | `0 0 2 * * ?` | 回收任务执行时间 |
-| `PLATFORM_ADMIN_ENABLED` | `true` | 是否开放平台超管登录入口 |
+
+**部署初始化相关（单企业私有化部署，改这几个即可交付给客户）：**
+
+| 变量 | 默认值 | 说明 |
+|---|---|---|
+| `TENANT_ID` | `1` | 本部署对应的企业 ID |
+| `TENANT_CODE` | `default` | 企业编码 |
+| `TENANT_NAME` | `我的企业` | 企业名称，显示在后台左上角与登录页 |
+| `TENANT_REGION` / `TENANT_REGION_NAME` | `CN` / 空 | 地区 |
+| `TENANT_TIMEZONE` / `TENANT_CURRENCY` | `Asia/Shanghai` / `CNY` | 时区与币种 |
+| `TENANT_CONTACT_NAME` / `TENANT_CONTACT_PHONE` | 空 | 联系人 |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | `admin` / 空 | 初始管理员账号；密码留空则随机生成并打印到日志 |
 
 > 生成一个合格密钥：`openssl rand -base64 48`
 
@@ -66,8 +76,12 @@ java -jar apps/crm-boot/target/ok-crm.jar --spring.profiles.active=demo
 cat > .env <<'EOF'
 MYSQL_ROOT_PASSWORD=<强密码>
 JWT_SECRET=<openssl rand -base64 48 的输出>
-PLATFORM_ADMIN_PASSWORD=<强密码>
-TENANT_ADMIN_PASSWORD=<强密码>
+# 客户企业信息（首次启动自动写入数据库）
+TENANT_NAME=某某科技有限公司
+TENANT_REGION=CN-HUBEI
+# 初始管理员：密码留空则随机生成并打印到日志
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=
 EOF
 
 # 拉起 MySQL + Redis + 后端 + 前端
@@ -110,21 +124,24 @@ npm run build          # 产物在 web/dist
 
 项目使用 **Flyway**，应用启动时自动执行 `apps/crm-boot/src/main/resources/db/migration` 下的脚本。
 
-- 已执行的脚本**不可修改**（Flyway 会校验 checksum）；改结构请新增 `V3__xxx.sql`
+- 已执行的脚本**不可修改**（Flyway 会校验 checksum）；改结构请新增 `V4__xxx.sql`
 - 脚本按「MySQL / H2 双兼容」的可移植 SQL 编写，因此集成测试可以在 H2 上跑同一份脚本
-- 新增租户级表必须带 `tenant_id` 列；新增全局表要同步加进 `SharedTableIsolationStrategy` 的全局表清单
+- 新增业务表必须带 `tenant_id` 列（实体继承 `TenantEntity`）；新增全局表要同步加进 `SharedTableIsolationStrategy` 的全局表清单
 
 ---
 
-## 5. 多租户与数据隔离
+## 5. 数据隔离
+
+本项目是**单企业私有化部署**：一套部署只服务一家企业，但底层仍走 `tenant_id` 行级隔离。
 
 | 项目 | 说明 |
 |---|---|
 | 隔离方式 | 共享库共享表 + `tenant_id` 行级隔离 |
 | 实现位置 | `platform-mybatis` 的 `TenantLineInnerInterceptor` |
 | 全局表 | `sys_tenant`、`sys_module`、`sys_permission`、`flyway_schema_history` |
-| 平台超管 | 不做自动隔离，跨租户查询必须显式写 `tenant_id` 条件 |
-| 定时任务 | 必须用 `TenantContext.callAs(tenantId, ...)` 显式绑定租户 |
+| 定时任务 | 必须用 `TenantContext.callAs(tenantId, ...)` 显式绑定企业 |
+
+**为什么单企业部署还要保留隔离机制**：它是免费的隔离保险。客户若是集团、下面有子公司要分账，或日后你想改托管部署（多个客户共用一套），都不需要改代码 —— 只要往 `sys_tenant` 加记录即可。
 
 **升级到更强隔离**：实现 `TenantIsolationStrategy`（预留 `SHARED_SCHEMA` / `SEPARATE_DATABASE` 两种模式），替换掉 `SharedTableIsolationStrategy` bean 即可，业务代码无需改动。
 
@@ -134,8 +151,8 @@ npm run build          # 产物在 web/dist
 
 - 默认每天凌晨 2 点执行，cron 由 `POOL_RECYCLE_CRON` 控制
 - **多实例部署时用分布式锁互斥**：`spring.cache.type=redis` 时自动切换为 Redis 锁（`SET NX EX` + Lua 校验持有者），否则退化为进程内锁
-- 回收口径（按最后跟进时间 / 按创建时间）与阈值按租户配置，见 `sys_tenant_config`
-- 支持手工触发：`POST /api/pool/recycle/run`（本租户）、`POST /api/pool/recycle/run-all`（平台超管，全部租户）
+- 回收口径（按最后跟进时间 / 按创建时间）与阈值按企业配置，见 `sys_tenant_config`
+- 支持手工触发：`POST /api/pool/recycle/run`（触发本企业的回收）
 
 > ⚠️ 如果只部署单实例，可以继续用进程内锁；一旦扩容到 2 个以上实例，**必须**把 `spring.cache.type` 设为 `redis`，否则各节点会各自跑一遍回收任务。
 
@@ -152,10 +169,10 @@ npm run build          # 产物在 web/dist
 ## 8. 上线检查清单
 
 - [ ] `JWT_SECRET` 已替换为随机强密钥（≥32 字节）
-- [ ] `PLATFORM_ADMIN_PASSWORD`、`TENANT_ADMIN_PASSWORD` 已替换
-- [ ] `PLATFORM_ADMIN_ENABLED` 按需关闭（不需要平台管理端对外时）
+- [ ] 企业信息（`TENANT_NAME` / 地区 / 时区 / 币种）已按客户配置
+- [ ] 初始管理员密码已从启动日志获取，或已由 `ADMIN_PASSWORD` 指定；**并已通知客户立即修改**
 - [ ] 数据库使用独立账号，不使用 root
 - [ ] `spring.cache.type=redis`（多实例部署时）
 - [ ] Nginx 已配置 HTTPS，且 `/api/` 正确转发
 - [ ] `logs/` 目录已挂载并配置轮转
-- [ ] 已完成一次「开通租户 → 登录 → 建客户 → 领取 → 回收」的冒烟验证
+- [ ] 已完成一次「登录 → 建客户 → 领取 → 回收」的冒烟验证

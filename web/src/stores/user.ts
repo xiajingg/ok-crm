@@ -7,8 +7,8 @@ import { clearToken, getToken, setToken } from '@/utils/auth'
 /**
  * 登录态与权限。
  *
- * <p>权限码与已购模块都来自后端：权限码控制按钮显隐，
- * 已购模块决定菜单分组是否出现。前端不自己推断，避免与后端不一致。</p>
+ * <p>权限码与已启用模块都来自后端：权限码控制按钮显隐，
+ * 已启用模块决定菜单分组是否出现。前端不自己推断，避免与后端不一致。</p>
  */
 export const useUserStore = defineStore('user', () => {
   const token = ref<string>(getToken())
@@ -20,8 +20,8 @@ export const useUserStore = defineStore('user', () => {
   /** 动态路由是否已注入，避免重复 addRoute */
   const routesReady = ref(false)
 
-  const isPlatformAdmin = computed(() => user.value?.platformAdmin === true)
   const displayName = computed(() => user.value?.realName || user.value?.username || '未登录')
+  const tenantName = computed(() => tenant.value?.name || '')
 
   function applyLogin(data: LoginResponse) {
     token.value = data.token
@@ -32,12 +32,8 @@ export const useUserStore = defineStore('user', () => {
     modules.value = data.modules ?? []
   }
 
-  async function login(payload: { tenantCode: string; username: string; password: string }) {
+  async function login(payload: { username: string; password: string }) {
     applyLogin(await authApi.login(payload))
-  }
-
-  async function platformLogin(payload: { username: string; password: string }) {
-    applyLogin(await authApi.platformLogin(payload))
   }
 
   async function loadProfile() {
@@ -52,19 +48,13 @@ export const useUserStore = defineStore('user', () => {
     menus.value = await authApi.fetchMenus()
   }
 
-  /** 是否拥有某权限码（平台超管恒为 true） */
+  /** 是否拥有某权限码 */
   function has(code: string): boolean {
-    if (isPlatformAdmin.value) {
-      return true
-    }
     return permissions.value.includes(code)
   }
 
-  /** 当前租户是否购买了某模块 */
+  /** 本部署是否启用了某模块 */
   function hasModule(moduleKey: string): boolean {
-    if (isPlatformAdmin.value) {
-      return true
-    }
     return modules.value.includes(moduleKey)
   }
 
@@ -87,10 +77,9 @@ export const useUserStore = defineStore('user', () => {
     modules,
     menus,
     routesReady,
-    isPlatformAdmin,
     displayName,
+    tenantName,
     login,
-    platformLogin,
     loadProfile,
     loadMenus,
     has,

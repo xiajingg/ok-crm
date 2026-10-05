@@ -20,6 +20,18 @@ mybatis-plus:
 okcrm:
   jwt:
     secret: test-only-secret-key-must-be-at-least-32-bytes-long
+  # 测试环境也走真实的部署初始化流程：应用启动时自动建好企业、默认岗位与管理员账号，
+  # 这样端到端用例可以直接登录，不需要再自己造数据
+  setup:
+    enabled: true
+    tenant-id: 1
+    tenant-code: testco
+    tenant-name: 测试企业
+    region: CN-HUBEI
+    region-name: 湖北
+    admin:
+      username: admin
+      password: admin123456
   pool:
     # 测试环境关闭定时触发，回收逻辑用显式调用验证
     recycle-enabled: false

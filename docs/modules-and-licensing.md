@@ -91,7 +91,7 @@ com.okcrm.modules.<module>
 # 完整版（默认，activeByDefault）
 mvn -pl apps/crm-boot -am package
 
-# 基础版：租户 + 组织 + 客户，不含公海池
+# 基础版：组织 + 客户，不含公海池
 mvn -pl apps/crm-boot -am package -Pedition-basic
 
 # 专业版：基础版 + 公海池
@@ -102,39 +102,33 @@ mvn -pl apps/crm-boot -am package -Pedition-pro
 
 交付给只买了基础版的客户时，包里**物理上不存在** `module-pool` 的 class —— 不是「藏起来」，是真的没有。
 
-### 第 2 层：运行期授权（决定「已部署的实例对哪些租户开放」）
+### 第 2 层：运行期台账（兜底，用于交付「全模块试用包」）
 
-SaaS 形态下多个租户共用一个部署包，靠 `sys_tenant_module` 表区分各自买了什么：
+本项目是单企业私有化部署，**模块售卖主要靠第 1 层的编译期裁剪** —— 没买就没打包，接口根本不存在。
+
+运行期台账 `sys_tenant_module` 保留下来，用于需要「一套全模块包 + 运行时开关」的场景（例如给客户发试用包，到期后关闭某些模块）：
 
 ```
 sys_tenant_module(tenant_id, module_key, status, expire_date)
 ```
 
-接口层的闸门是 `@RequiresModule` 注解 + `ModuleLicenseInterceptor`：
+任务状态：部署初始化时会把 `sys_module` 里已注册的模块全部授权给本部署（`DeploymentSetupRunner`）。
 
-```java
-@RequiresModule(ModuleKeys.POOL)
-@RestController
-@RequestMapping("/pool")
-public class PoolController { ... }
-```
-
-未购买时返回 **1401「当前租户未购买该模块」**，而不是 404 或 500 —— 这对销售演示很重要：「功能存在但你没买」比「查无此接口」更容易促成续费。
-
-> **为什么不直接用 `@PreAuthorize("@module.licensed('pool')")`？**
-> 因为 Spring Security 的规则是「**方法级注解覆盖类级注解**」。
-> 只要方法上写了 `@PreAuthorize("@perm.has('pool:list')")`，类上的模块授权判断就会被整条丢掉 ——
-> 模块闸门形同虚设。这个坑极其隐蔽：接口全部正常，只是「没买也能用」。
-> 所以模块授权与角色权限被拆成两套互不覆盖的机制：前者用 MVC 拦截器，后者用 `@PreAuthorize`。
+> ⚠️ 这层**不能替代编译期裁剪**：只改数据库不换包，未购模块的代码仍在客户手里，防不住白嫖。它只负责「本实例启用哪些模块」的功能开关语义。
 
 ### 第 3 层：前端菜单（决定「客户看到什么」）
 
-前端菜单**不写死**，由后端 `/api/auth/menus` 按「已购模块 ∩ 岗位权限」动态下发：
+前端菜单**不写死**，由后端 `/api/auth/menus` 按「已启用模块 ∩ 岗位权限」动态下发：
 
-- 未购买的模块 → 后端不下发对应菜单 → 前端连路由都不会注册
+- 未启用（未打包或台账关闭）的模块 → 后端不下发对应菜单 → 前端连路由都不会注册
 - 岗位没权限的菜单 → 同样不下发
 
 因此**不需要维护两套前端代码**，这是模块能真正拆开卖的关键一环。
+
+> ⚠️ **已知限制**：`sys_permission` 目前由 Flyway 种子脚本一次性写入全部模块的权限点。
+> 如果按 edition 裁剪了模块，被裁掉模块的菜单行仍在库里，会显示出来但点进去 404。
+> 正确的做法是把模块/权限点改成「各模块启动时自注册」，尚未实现（排期在授权文件之后）。
+> 当前规避方式：给客户部署后，在「组织管理 → 岗位管理」里取消未购模块的权限勾选，菜单即消失。
 
 ---
 
@@ -153,15 +147,20 @@ public class PoolController { ... }
 
 ---
 
-## 五、模块授权台账的使用
+## 五、模块授权台账
 
-平台超管通过以下接口管理（`/api/platform/modules`）：
+单企业私有化部署下**没有平台管理端**，台账由部署初始化流程自动写入：首次启动时把 `sys_module` 里已注册的模块全部授权给本部署（`DeploymentSetupRunner` → `TenantModuleService.grantForNewTenant`）。
 
-| 操作 | 接口 |
-|---|---|
-| 查看产品价目表 | `GET /catalog` |
-| 查看某租户的授权明细 | `GET /tenant/{tenantId}` |
-| 授权模块 | `POST /tenant/{tenantId}/grant` |
-| 撤销模块 | `DELETE /tenant/{tenantId}/{moduleKey}` |
+因此平时**不需要任何手工操作**。需要临时关闭某个模块（例如发试用包）时，直接改数据库即可：
 
-**撤销用「置为停用」而不是删除**：`sys_tenant_module` 上有 `(tenant_id, module_key)` 唯一约束，若走逻辑删除，被删的那行仍占用唯一键，后续重新授权会插入失败。置为停用既避开这个坑，也保留了「这个客户曾经买过什么」的销售线索。
+```sql
+-- 关闭公海池
+UPDATE sys_tenant_module SET status = 0 WHERE module_key = 'pool';
+-- 重新启用
+UPDATE sys_tenant_module SET status = 1 WHERE module_key = 'pool';
+```
+
+> 改完需要清掉缓存：`GET /api/tenants/current/modules` 的授权结果走 Redis 缓存（TTL 10 分钟）。
+> 服务重启也可以。
+
+**台账停用语义说明**：`sys_tenant_module` 上有 `(tenant_id, module_key)` 唯一约束，因此「撤销」实现为**置为停用（status=0）而不是删除** —— 逻辑删除的行仍占用唯一键，会导致重新授权插入失败。置为停用也保留了「这个客户买过什么」的记录。

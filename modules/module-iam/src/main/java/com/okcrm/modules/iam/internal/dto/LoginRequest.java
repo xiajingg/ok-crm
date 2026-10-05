@@ -3,15 +3,12 @@ package com.okcrm.modules.iam.internal.dto;
 import jakarta.validation.constraints.NotBlank;
 
 /**
- * 租户内用户登录请求。
+ * 登录请求。
  *
- * <p>必须提供 {@code tenantCode}：同一套 SaaS 里不同企业的账号可以重名，
- * 先用租户编码定位租户，再在租户内匹配账号。</p>
+ * <p>单企业私有化部署：一套系统只服务一个企业，企业信息由部署初始化流程写入
+ * （见 {@code okcrm.setup} 配置），因此登录不再需要选择企业，只要账号密码。</p>
  */
 public record LoginRequest(
-
-        @NotBlank(message = "租户编码不能为空")
-        String tenantCode,
 
         @NotBlank(message = "账号不能为空")
         String username,

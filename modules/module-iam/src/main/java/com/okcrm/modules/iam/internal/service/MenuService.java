@@ -20,10 +20,10 @@ import java.util.stream.Collectors;
 /**
  * 动态菜单服务。
  *
- * <p>菜单 = 权限点目录 ∩ 岗位已授权限 ∩ 租户已购模块。三道过滤缺一不可：</p>
+ * <p>菜单 = 权限点目录 ∩ 岗位已授权限 ∩ 本部署已启用的模块。三道过滤缺一不可：</p>
  * <ul>
  *   <li>少了「岗位权限」→ 销售能看到管理员菜单</li>
- *   <li>少了「已购模块」→ 没买公海池的客户也能看到公海菜单，点进去报错</li>
+ *   <li>少了「已启用模块」→ 客户没买的模块菜单也会出现，点进去 404</li>
  * </ul>
  */
 @Service
@@ -36,29 +36,27 @@ public class MenuService {
     /**
      * 构建当前用户可见的菜单树。
      *
-     * @param tenantId            租户 ID；平台超管可为 null
-     * @param platformAdmin       平台超管可见全部菜单
-     * @param grantedPermissions  该员工拥有的权限码
+     * @param tenantId           企业 ID
+     * @param grantedPermissions 该员工拥有的权限码
      */
-    public List<MenuNode> menuOf(Long tenantId, boolean platformAdmin, Set<String> grantedPermissions) {
+    public List<MenuNode> menuOf(Long tenantId, Set<String> grantedPermissions) {
         List<Permission> menus = permissionMapper.selectList(Wrappers.<Permission>lambdaQuery()
                 .eq(Permission::getType, PermissionType.MENU)
                 .eq(Permission::getStatus, EnableStatus.ENABLED)
                 .orderByAsc(Permission::getSortOrder)
                 .orderByAsc(Permission::getId));
 
-        Set<String> licensedModules = platformAdmin ? Set.of() : moduleLicenseProvider.licensedModules(tenantId);
+        Set<String> licensedModules = moduleLicenseProvider.licensedModules(tenantId);
 
         Map<String, List<Permission>> byParent = menus.stream()
                 .collect(Collectors.groupingBy(permission ->
                         permission.getParentCode() == null ? CommonConstants.PERMISSION_ROOT : permission.getParentCode()));
 
-        return buildChildren(CommonConstants.PERMISSION_ROOT, byParent, platformAdmin, grantedPermissions, licensedModules);
+        return buildChildren(CommonConstants.PERMISSION_ROOT, byParent, grantedPermissions, licensedModules);
     }
 
     private List<MenuNode> buildChildren(String parentCode,
                                          Map<String, List<Permission>> byParent,
-                                         boolean platformAdmin,
                                          Set<String> grantedPermissions,
                                          Set<String> licensedModules) {
         List<Permission> children = byParent.get(parentCode);
@@ -68,15 +66,15 @@ public class MenuService {
 
         List<MenuNode> nodes = new ArrayList<>();
         for (Permission permission : children) {
-            // 第一道闸门：模块未授权，整棵子树直接剪掉
-            if (!platformAdmin && !licensedModules.contains(permission.getModuleKey())) {
+            // 第一道闸门：本部署未启用的模块，整棵子树直接剪掉
+            if (!licensedModules.contains(permission.getModuleKey())) {
                 continue;
             }
 
-            List<MenuNode> subNodes = buildChildren(permission.getCode(), byParent, platformAdmin,
+            List<MenuNode> subNodes = buildChildren(permission.getCode(), byParent,
                     grantedPermissions, licensedModules);
 
-            boolean selfGranted = platformAdmin || grantedPermissions.contains(permission.getCode());
+            boolean selfGranted = grantedPermissions.contains(permission.getCode());
             // 第二道闸门：自身无权限且没有可见子节点 → 剪掉
             if (!selfGranted && subNodes.isEmpty()) {
                 continue;

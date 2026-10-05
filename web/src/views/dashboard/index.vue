@@ -5,7 +5,7 @@
         <div>
           <h3 class="welcome-title">你好，{{ store.displayName }}</h3>
           <p class="welcome-sub">
-            当前企业：<b>{{ store.tenant?.name || '平台管理端' }}</b>
+            当前企业：<b>{{ store.tenant?.name || '未设置企业' }}</b>
             <template v-if="store.tenant">
               ｜地区：{{ store.tenant.regionName || store.tenant.region }}
               ｜时区：{{ store.tenant.timezone }}
@@ -13,7 +13,6 @@
             </template>
           </p>
         </div>
-        <el-tag v-if="store.isPlatformAdmin" type="danger" effect="dark">平台超管</el-tag>
       </div>
     </el-card>
 
@@ -72,12 +71,7 @@
       <el-col :span="12">
         <el-card shadow="never" class="page-card">
           <template #header>我的权限</template>
-          <el-empty
-            v-if="store.isPlatformAdmin"
-            description="平台超管拥有全部权限"
-            :image-size="80"
-          />
-          <div v-else class="perm-wrap">
+          <div class="perm-wrap">
             <el-tag
               v-for="code in store.permissions"
               :key="code"
@@ -88,6 +82,7 @@
             >
               {{ code }}
             </el-tag>
+            <el-empty v-if="store.permissions.length === 0" description="暂无权限" :image-size="70" />
           </div>
         </el-card>
       </el-col>

@@ -65,17 +65,30 @@ okcrm:
     # 额外需要排除租户隔离的全局表（默认清单见 SharedTableIsolationStrategy）
     extra-global-tables: []
   pool:
-    # 公海池自动回收任务开关；具体回收天数按租户配置（sys_tenant_config）
+    # 公海池自动回收任务开关；具体回收天数按企业配置（sys_tenant_config）
     recycle-enabled: ${POOL_RECYCLE_ENABLED:true}
     recycle-cron: ${POOL_RECYCLE_CRON:0 0 2 * * ?}
-  # 平台超管：不属于任何租户，凭据来自配置而非数据库
-  platform-admin:
-    enabled: ${PLATFORM_ADMIN_ENABLED:true}
-    username: ${PLATFORM_ADMIN_USERNAME:admin}
-    password: ${PLATFORM_ADMIN_PASSWORD:admin123456}
-    real-name: 平台管理员
-  # 开通租户时自动创建的管理员账号
-  tenant-provisioning:
-    default-admin-username: ${TENANT_ADMIN_USERNAME:admin}
-    default-admin-password: ${TENANT_ADMIN_PASSWORD:admin123456}
-    default-admin-real-name: 系统管理员
+
+  # ---------------------------------------------------------------------------
+  # 单企业私有化部署：首次启动时按这里的配置初始化企业信息（幂等，已存在则跳过）。
+  # 客户拿到包之后只需要改这一段，启动即完成部署，不需要执行任何 SQL。
+  # 部署完成后也可以在「企业设置」页里改（改的是数据库，不必重启）。
+  # ---------------------------------------------------------------------------
+  setup:
+    enabled: ${SETUP_ENABLED:true}
+    # 本部署对应的企业 ID。单企业部署固定一个值即可
+    tenant-id: ${TENANT_ID:1}
+    tenant-code: ${TENANT_CODE:default}
+    # 企业名称，会显示在管理后台左上角
+    tenant-name: ${TENANT_NAME:我的企业}
+    region: ${TENANT_REGION:CN}
+    region-name: ${TENANT_REGION_NAME:}
+    timezone: ${TENANT_TIMEZONE:Asia/Shanghai}
+    currency: ${TENANT_CURRENCY:CNY}
+    contact-name: ${TENANT_CONTACT_NAME:}
+    contact-phone: ${TENANT_CONTACT_PHONE:}
+    admin:
+      username: ${ADMIN_USERNAME:admin}
+      # 留空则自动生成随机强密码，并打印到启动日志（推荐）
+      password: ${ADMIN_PASSWORD:}
+      real-name: 系统管理员

@@ -1,12 +1,11 @@
 package com.okcrm.modules.tenant.internal.controller;
 
-import com.okcrm.modules.tenant.api.TenantBrief;
-import com.okcrm.modules.tenant.api.TenantQueryService;
 import com.okcrm.modules.tenant.internal.dto.TenantConfigUpdateRequest;
+import com.okcrm.modules.tenant.internal.dto.TenantResponse;
+import com.okcrm.modules.tenant.internal.dto.TenantUpdateRequest;
 import com.okcrm.modules.tenant.internal.service.TenantConfigService;
-import com.okcrm.platform.common.api.ErrorCode;
+import com.okcrm.modules.tenant.internal.service.TenantService;
 import com.okcrm.platform.common.api.Result;
-import com.okcrm.platform.common.exception.BizException;
 import com.okcrm.platform.security.checker.ModuleChecker;
 import com.okcrm.platform.tenant.TenantContext;
 import io.swagger.v3.oas.annotations.Operation;
@@ -24,42 +23,50 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 租户内：查看本租户信息、已购模块与配置。
+ * 企业设置。
  *
- * <p>所有接口都隐式作用于「当前登录租户」，不需要也不接受 tenantId 参数 ——
- * 这样从接口层面就杜绝了「传别人租户 ID 越权读取」。</p>
+ * <p>单企业私有化部署下，这里是「本企业」的信息入口：企业名称、地区、时区、币种与租户级配置。</p>
+ *
+ * <p>所有接口都隐式作用于当前部署所属的企业，不接受 tenantId 参数 ——
+ * 从接口层面就杜绝了越权读取其它企业的数据。</p>
  */
-@Tag(name = "租户-当前租户", description = "本租户信息、已购模块、租户配置")
+@Tag(name = "企业设置", description = "本企业信息、已启用模块、租户级配置")
 @RestController
 @RequestMapping("/tenants")
 @RequiredArgsConstructor
 public class TenantController {
 
-    private final TenantQueryService tenantQueryService;
+    private final TenantService tenantService;
     private final TenantConfigService tenantConfigService;
     private final ModuleChecker moduleChecker;
 
-    @Operation(summary = "当前租户信息")
+    @Operation(summary = "当前企业信息")
     @GetMapping("/current")
-    public Result<TenantBrief> current() {
-        Long tenantId = TenantContext.requireTenantId();
-        return Result.ok(tenantQueryService.findById(tenantId)
-                .orElseThrow(() -> BizException.of(ErrorCode.TENANT_NOT_FOUND)));
+    public Result<TenantResponse> current() {
+        return Result.ok(tenantService.detail(TenantContext.requireTenantId()));
     }
 
-    @Operation(summary = "当前租户已购模块", description = "前端据此渲染模块分组菜单")
+    @Operation(summary = "修改企业信息",
+            description = "企业编码不可改；改动即时生效，不需要重启")
+    @PutMapping("/current")
+    @PreAuthorize("@perm.has('tenant:config:update')")
+    public Result<TenantResponse> update(@Valid @RequestBody TenantUpdateRequest request) {
+        return Result.ok(tenantService.update(TenantContext.requireTenantId(), request));
+    }
+
+    @Operation(summary = "当前企业已启用的模块", description = "前端据此渲染模块分组菜单")
     @GetMapping("/current/modules")
     public Result<Set<String>> currentModules() {
         return Result.ok(moduleChecker.licensedModules());
     }
 
-    @Operation(summary = "当前租户配置")
+    @Operation(summary = "当前企业配置")
     @GetMapping("/current/config")
     public Result<Map<String, String>> currentConfig() {
         return Result.ok(tenantConfigService.getAll(TenantContext.requireTenantId()));
     }
 
-    @Operation(summary = "修改当前租户配置")
+    @Operation(summary = "修改当前企业配置")
     @PutMapping("/current/config")
     @PreAuthorize("@perm.has('tenant:config:update')")
     public Result<Void> updateConfig(@Valid @RequestBody TenantConfigUpdateRequest request) {

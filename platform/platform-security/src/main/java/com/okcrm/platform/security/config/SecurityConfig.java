@@ -37,8 +37,8 @@ public class SecurityConfig {
     private static final String[] PUBLIC_ENDPOINTS = {
             // 登录相关：登录前当然没有令牌
             "/auth/login",
-            "/auth/platform-login",
-            "/auth/tenants",
+            // 登录页展示企业名称用
+            "/auth/deployment",
             // 接口文档
             "/v3/api-docs/**",
             "/swagger-ui/**",

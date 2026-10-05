@@ -5,7 +5,6 @@ import com.okcrm.modules.pool.domain.PoolRecycleSettings;
 import com.okcrm.modules.pool.internal.dto.PoolAssignRequest;
 import com.okcrm.modules.pool.internal.dto.PoolLogResponse;
 import com.okcrm.modules.pool.internal.dto.PoolSettingsRequest;
-import com.okcrm.modules.pool.internal.dto.RecycleResult;
 import com.okcrm.modules.pool.internal.service.PoolRecycleService;
 import com.okcrm.modules.pool.internal.service.PoolService;
 import com.okcrm.platform.common.api.PageResult;
@@ -107,13 +106,5 @@ public class PoolController {
     @PreAuthorize("@perm.has('pool:settings:update')")
     public Result<Integer> runRecycle() {
         return Result.ok(poolRecycleService.recycleTenant(TenantContext.requireTenantId()));
-    }
-
-    @Operation(summary = "手工触发全部租户回收（平台运维用）",
-            description = "需要平台超管身份；带分布式锁，重复调用会被跳过")
-    @PostMapping("/recycle/run-all")
-    @PreAuthorize("@authz.platformAdmin()")
-    public Result<RecycleResult> runRecycleAll() {
-        return Result.ok(poolRecycleService.recycleAllTenants());
     }
 }
