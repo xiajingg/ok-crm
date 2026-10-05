@@ -26,5 +26,21 @@ public class AdminSetupProperties {
      */
     private String password = "";
 
+    /**
+     * 密码重置：非空时，启动后把 {@link #username} 的密码重置为该值。
+     *
+     * <p>用途有两个：</p>
+     * <ul>
+     *   <li><b>客户忘了管理员密码</b> —— 这是必然会发生的支持场景，
+     *       没有这个入口就只能让客户重装数据库</li>
+     *   <li>本地开发图方便 —— 在 <code>.env.local</code> 里写一行
+     *       <code>ADMIN_RESET_PASSWORD=admin123456</code>，每次启动密码都是它，
+     *       不用去日志里翻随机密码</li>
+     * </ul>
+     *
+     * <p>⚠️ 每次启动都会重置，用完请从配置里删掉。设了它会打 WARN 提醒。</p>
+     */
+    private String resetPassword = "";
+
     private String realName = "系统管理员";
 }

@@ -268,6 +268,7 @@ cd web && npm install && npm run dev
 |---|---|---|
 | 自动生成（推荐） | `ADMIN_PASSWORD` 留空 | 启动时生成 12 位随机强密码，并**打印到启动日志**（只出现一次，务必记下来） |
 | 显式指定 | `ADMIN_PASSWORD=xxx` | 用配置的密码，适合内部部署或自动化脚本 |
+| 事后重置 | `ADMIN_RESET_PASSWORD=xxx` | **已经建好之后**改密码用（客户忘了密码 / 本地开发想固定密码） |
 
 ```bash
 # 生成方式：看启动日志里这段输出
@@ -277,6 +278,9 @@ cd web && npm install && npm run dev
 #      密码：XXXXXXXXXXXX
 #    请立即登录并在「组织管理 → 员工管理」里修改密码。
 #   ============================================================
+
+# 忘记密码了？重置（每次启动都会重置，用完记得删掉这一行）
+ADMIN_RESET_PASSWORD=新密码 ./scripts/start-local.sh mysql
 ```
 
 > ⚠️ 生产环境必须替换 `JWT_SECRET`，并建议让初始密码自动生成。
