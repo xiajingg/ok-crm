@@ -47,6 +47,9 @@ logs/
 data/
 /tmp/
 
+# ---------- 本地 UI 验证产物（scripts/verify-mobile.cjs 的截图与日志）----------
+.verify/
+
 # ---------- 工作区内部数据（Agent 记忆等），不入公开仓库 ----------
 .workbuddy-ai/
 .wbapp_*

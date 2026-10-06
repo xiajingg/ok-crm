@@ -37,7 +37,10 @@ const staticRoutes: RouteRecordRaw[] = [
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: () => import('@/views/error/404.vue'),
-    meta: { public: true, title: '页面不存在' }
+    // ⚠️ 这里**不能**标 public。动态路由是登录后才注入的，刷新任意业务页时
+    // 第一次匹配到的就是这条 catch-all；如果它标了 public，守卫会直接放行，
+    // 动态路由永远没机会加载 —— 症状是「刷新页面就 404，点菜单进去却正常」。
+    meta: { title: '页面不存在' }
   }
 ]
 
@@ -102,8 +105,12 @@ router.beforeEach(async (to) => {
       await store.loadMenus()
       buildRoutes(store.menus).forEach((route) => router.addRoute('Root', route))
       store.routesReady = true
-      // 路由表刚变化，重走一次本次导航，否则会落到 404
-      return { ...to, replace: true }
+      // 路由表刚变化，重走一次本次导航，否则会落到 404。
+      //
+      // ⚠️ 这里必须用 path 而不是 `{ ...to }`：此时 to 已经被解析成了 404 那条
+      // catch-all 路由，展开会把 name: 'NotFound' 一起带过去，重新导航又按名字匹配回 404。
+      // 症状是「动态路由页面刷新/直接输网址就 404，点菜单进去却正常」。
+      return { path: to.fullPath, replace: true }
     } catch (error) {
       console.error('[router] 初始化用户上下文失败', error)
       store.logout()

@@ -72,3 +72,124 @@ body {
   color: #909399;
   text-align: center;
 }
+
+/* 登录卡片在窄屏上不能超出视口 */
+.login-card {
+  max-width: calc(100vw - 32px);
+}
+
+/* ============================================================================
+   移动端适配
+   断点 768px —— 手机竖屏与小平板都归到这一档。
+   绝大多数问题都源于「固定像素宽度」：220px 侧边栏、560px 弹窗、240px 输入框，
+   在 375px 宽的屏幕上必然撑破布局。下面按「谁在撑宽」逐类处理。
+   ============================================================================ */
+@media (max-width: 768px) {
+  /* ---------- 页面留白收紧，把宽度让给内容 ---------- */
+  .page-container {
+    padding: 8px;
+  }
+
+  .page-card {
+    margin-bottom: 8px;
+  }
+
+  /* ---------- 工具栏：控件占满整行 ---------- */
+  .table-toolbar {
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .table-toolbar .el-input,
+  .table-toolbar .el-select,
+  .table-toolbar .el-date-editor,
+  .table-toolbar .el-input-number {
+    width: 100% !important;
+    flex: 1 1 100%;
+  }
+
+  /* 占位元素会把按钮挤到下一行且留一大片空白，手机上直接去掉 */
+  .table-toolbar .spacer {
+    display: none;
+  }
+
+  .table-toolbar .el-button {
+    flex: 1 1 auto;
+    margin-left: 0;
+  }
+
+  /* ---------- 弹窗 / 抽屉：占满可用宽度 ---------- */
+  /* Element Plus 的宽高写在内联样式上，必须 !important 才能覆盖 */
+  .el-dialog {
+    width: 94% !important;
+    max-width: 94% !important;
+    margin-top: 6vh !important;
+  }
+
+  .el-message-box {
+    width: 90% !important;
+  }
+
+  .el-drawer {
+    width: 100% !important;
+  }
+
+  /* ---------- 表单：标签改为上置 ---------- */
+  /* 手机上 90~180px 的左标签会把输入框挤到只剩一半，上置后可用宽度翻倍。
+     这里 display 也要 !important —— Element Plus 给 .el-form-item 设了 display:flex，
+     不强制覆盖的话标签和输入框还是并排的。 */
+  .el-form-item {
+    display: block !important;
+  }
+
+  .el-form-item__label {
+    display: block !important;
+    width: auto !important;
+    max-width: none !important;
+    padding: 0 0 4px !important;
+    text-align: left !important;
+  }
+
+  .el-form-item__content {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+
+  /* ---------- 表格 ---------- */
+  .el-table {
+    font-size: 13px;
+  }
+
+  .el-table .cell {
+    padding: 0 8px;
+  }
+
+  /* 固定列在窄屏上会吃掉大半宽度，是否固定由组件按视口决定（见 useIsMobile） */
+
+  /* ---------- 分页：居中并允许换行 ---------- */
+  .pagination-bar {
+    justify-content: center;
+  }
+
+  .el-pagination {
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 6px;
+  }
+
+  /* ---------- 卡片头部：标题与按钮换行 ---------- */
+  .card-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* ---------- 登录页 ---------- */
+  .login-card {
+    width: 100%;
+    padding: 24px 20px;
+  }
+
+  .login-title {
+    font-size: 19px;
+  }
+}

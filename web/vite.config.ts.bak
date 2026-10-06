@@ -1,22 +1,9 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import Components from 'unplugin-vue-components/vite'
-import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
-  // Element Plus 按需导入：只打包 <el-xxx> 里真正用到的组件。
-  // 不接这个插件时，main.ts 里的 app.use(ElementPlus) 会把整库（2.4MB）
-  // 全部打进产物，首屏会明显变慢。
-  // 注意：图标不在此列 —— SidebarItem.vue 里 icon 来自后端菜单数据，
-  // 要靠 <component :is="menu.icon" /> 动态解析，所以图标仍在 main.ts 全量注册。
-  plugins: [
-    vue(),
-    Components({
-      resolvers: [ElementPlusResolver()],
-      dts: false
-    })
-  ],
+  plugins: [vue()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))

@@ -44,7 +44,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right">
+        <el-table-column label="操作" :width="isMobile ? 140 : 150" :fixed="isMobile ? false : 'right'">
           <template #default="{ row }">
             <el-button v-permission="'iam:position:update'" link type="primary" @click="openEdit(row)">
               编辑
@@ -125,6 +125,10 @@ import {
   type PositionForm,
   type PositionRow
 } from '@/api/position'
+import { useIsMobile } from '@/composables/useIsMobile'
+
+// 手机上取消「操作」列固定：固定列会占掉大半屏宽，剩下的内容几乎看不见
+const isMobile = useIsMobile()
 
 interface TreeNode {
   key: string
@@ -282,6 +286,8 @@ onMounted(async () => {
   width: 100%;
   max-height: 320px;
   overflow-y: auto;
+  /* 权限码较长，窄屏上允许横向滚动而不是把弹窗撑宽 */
+  overflow-x: auto;
   border: 1px solid #e4e7ed;
   border-radius: 4px;
   padding: 8px;

@@ -53,7 +53,7 @@
           <template #default="{ row }">{{ row.lastFollowUpAt || '从未跟进' }}</template>
         </el-table-column>
         <el-table-column prop="contactCount" label="联系人" width="80" align="center" />
-        <el-table-column label="操作" width="260" fixed="right">
+        <el-table-column label="操作" :width="isMobile ? 180 : 260" :fixed="isMobile ? false : 'right'">
           <template #default="{ row }">
             <el-button link type="primary" @click="openDetail(row)">详情</el-button>
             <el-button v-permission="'customer:update'" link type="primary" @click="openEdit(row)">
@@ -171,7 +171,7 @@
 
     <!-- 详情抽屉：基本信息 + 联系人 + 跟进记录 -->
     <el-drawer v-model="detailVisible" :title="detail?.name || '客户详情'" size="640px">
-      <el-descriptions v-if="detail" :column="2" border size="small">
+      <el-descriptions v-if="detail" :column="isMobile ? 1 : 2" border size="small">
         <el-descriptions-item label="级别">{{ detail.level || '-' }}</el-descriptions-item>
         <el-descriptions-item label="行业">{{ detail.industry || '-' }}</el-descriptions-item>
         <el-descriptions-item label="电话">{{ detail.phone || '-' }}</el-descriptions-item>
@@ -290,6 +290,10 @@ import {
   type FollowUpRow
 } from '@/api/customer'
 import { listEmployeeOptions, type EmployeeOption } from '@/api/employee'
+import { useIsMobile } from '@/composables/useIsMobile'
+
+// 手机上取消「操作」列固定：固定列会占掉大半屏宽，剩下的内容几乎看不见
+const isMobile = useIsMobile()
 
 const loading = ref(false)
 const submitting = ref(false)

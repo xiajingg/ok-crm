@@ -43,7 +43,7 @@
         <el-table-column label="最后登录" width="170">
           <template #default="{ row }">{{ row.lastLoginAt || '从未登录' }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="230" fixed="right">
+        <el-table-column label="操作" :width="isMobile ? 180 : 230" :fixed="isMobile ? false : 'right'">
           <template #default="{ row }">
             <el-button v-permission="'iam:employee:update'" link type="primary" @click="openEdit(row)">
               编辑
@@ -146,6 +146,10 @@ import {
   type EmployeeRow
 } from '@/api/employee'
 import { listPositions, type PositionRow } from '@/api/position'
+import { useIsMobile } from '@/composables/useIsMobile'
+
+// 手机上取消「操作」列固定：固定列会占掉大半屏宽，剩下的内容几乎看不见
+const isMobile = useIsMobile()
 
 const loading = ref(false)
 const submitting = ref(false)

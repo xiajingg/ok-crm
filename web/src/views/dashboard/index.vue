@@ -17,28 +17,28 @@
     </el-card>
 
     <el-row :gutter="16">
-      <el-col v-if="store.hasModule('customer')" :span="6">
+      <el-col v-if="store.hasModule('customer')" :xs="12" :sm="12" :md="6">
         <el-card shadow="hover" class="stat-card">
           <div class="stat-label">我的客户</div>
           <div class="stat-value">{{ stats.myCustomers }}</div>
           <div class="stat-hint">受数据权限限制，仅统计你可见的客户</div>
         </el-card>
       </el-col>
-      <el-col v-if="store.hasModule('pool')" :span="6">
+      <el-col v-if="store.hasModule('pool')" :xs="12" :sm="12" :md="6">
         <el-card shadow="hover" class="stat-card">
           <div class="stat-label">公海池客户</div>
           <div class="stat-value">{{ stats.poolCustomers }}</div>
           <div class="stat-hint">无归属、可被领取的客户</div>
         </el-card>
       </el-col>
-      <el-col v-if="store.has('iam:employee:list')" :span="6">
+      <el-col v-if="store.has('iam:employee:list')" :xs="12" :sm="12" :md="6">
         <el-card shadow="hover" class="stat-card">
           <div class="stat-label">员工数</div>
           <div class="stat-value">{{ stats.employees }}</div>
           <div class="stat-hint">本企业全部员工</div>
         </el-card>
       </el-col>
-      <el-col v-if="store.has('iam:position:list')" :span="6">
+      <el-col v-if="store.has('iam:position:list')" :xs="12" :sm="12" :md="6">
         <el-card shadow="hover" class="stat-card">
           <div class="stat-label">岗位数</div>
           <div class="stat-value">{{ stats.positions }}</div>
@@ -48,7 +48,7 @@
     </el-row>
 
     <el-row :gutter="16" style="margin-top: 16px">
-      <el-col :span="12">
+      <el-col :xs="24" :md="12">
         <el-card shadow="never" class="page-card">
           <template #header>当前企业已购模块</template>
           <el-empty v-if="store.modules.length === 0" description="暂无模块授权" :image-size="80" />
@@ -68,7 +68,7 @@
         </el-card>
       </el-col>
 
-      <el-col :span="12">
+      <el-col :xs="24" :md="12">
         <el-card shadow="never" class="page-card">
           <template #header>我的权限</template>
           <div class="perm-wrap">
@@ -108,14 +108,14 @@ const stats = reactive({
 })
 
 const MODULE_LABELS: Record<string, string> = {
-  tenant: '租户与地区',
+  tenant: '企业设置',
   iam: '组织与权限',
   customer: '客户管理',
   pool: '公海池'
 }
 
 const MODULE_DESCS: Record<string, string> = {
-  tenant: '企业开通、地区属性、租户级配置',
+  tenant: '企业信息、地区、时区与租户级配置',
   iam: '岗位（即角色）、员工、数据权限',
   customer: '客户档案、联系人、跟进记录、归属分配',
   pool: '公海领取、指派、超期未跟进自动回收'

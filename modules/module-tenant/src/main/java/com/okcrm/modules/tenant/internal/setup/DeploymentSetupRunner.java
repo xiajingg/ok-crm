@@ -1,5 +1,6 @@
 package com.okcrm.modules.tenant.internal.setup;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.okcrm.modules.tenant.api.event.TenantCreatedEvent;
 import com.okcrm.modules.tenant.domain.Tenant;
 import com.okcrm.modules.tenant.infra.mapper.TenantMapper;
@@ -47,20 +48,43 @@ public class DeploymentSetupRunner implements ApplicationRunner {
     @Transactional(rollbackFor = Exception.class)
     public void run(ApplicationArguments args) {
         Long tenantId = setupProperties.getTenantId();
+        String tenantCode = StringUtils.hasText(setupProperties.getTenantCode())
+                ? setupProperties.getTenantCode() : "default";
 
+        // 已有企业记录就不再创建。三种情况都要挡住，否则会撞唯一约束导致应用起不来：
+        // 1) 按配置的 id 命中 —— 正常的重复启动
         if (tenantMapper.selectById(tenantId) != null) {
             log.info("企业信息已存在，跳过初始化（id={}）", tenantId);
             return;
         }
 
-        log.info("首次启动，开始初始化企业信息：id={}, name={}",
-                tenantId, setupProperties.getTenantName());
+        // 2) 编码相同但 id 不同 —— 从旧版本升级上来的库（旧版本用雪花 id 建企业，配置默认却是 1）
+        Tenant sameCode = tenantMapper.selectOne(Wrappers.<Tenant>lambdaQuery()
+                .eq(Tenant::getCode, tenantCode));
+        if (sameCode != null) {
+            log.warn("已存在编码为 {} 的企业记录（id={}），但配置的 okcrm.setup.tenant-id={} 与之不一致。"
+                            + "本部署将复用已有记录，跳过初始化。"
+                            + "如需统一，请把 tenant-id 改成 {}，或清库重新初始化。",
+                    tenantCode, sameCode.getId(), tenantId, sameCode.getId());
+            return;
+        }
+
+        // 3) 库里已有别的企业记录 —— 单企业部署下不该出现第二条
+        Long existingCount = tenantMapper.selectCount(null);
+        if (existingCount != null && existingCount > 0) {
+            log.warn("库中已存在 {} 条企业记录，跳过初始化。"
+                            + "请确认 okcrm.setup.tenant-id={} 是否与实际记录一致，否则登录会找不到企业。",
+                    existingCount, tenantId);
+            return;
+        }
+
+        log.info("首次启动，开始初始化企业信息：id={}, code={}, name={}",
+                tenantId, tenantCode, setupProperties.getTenantName());
 
         Tenant tenant = new Tenant();
         // 显式指定主键：单企业部署下用它作为固定的租户上下文标识
         tenant.setId(tenantId);
-        tenant.setCode(StringUtils.hasText(setupProperties.getTenantCode())
-                ? setupProperties.getTenantCode() : "default");
+        tenant.setCode(tenantCode);
         tenant.setName(StringUtils.hasText(setupProperties.getTenantName())
                 ? setupProperties.getTenantName() : "我的企业");
         tenant.setRegion(setupProperties.getRegion());

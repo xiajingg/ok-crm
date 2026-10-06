@@ -34,7 +34,7 @@
         <el-table-column label="最后跟进" width="170">
           <template #default="{ row }">{{ row.lastFollowUpAt || '从未跟进' }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column label="操作" width="180" :fixed="isMobile ? false : 'right'">
           <template #default="{ row }">
             <el-button
               v-permission="'pool:claim'"
@@ -105,6 +105,10 @@ import {
   type PoolCustomerRow
 } from '@/api/pool'
 import { listEmployeeOptions, type EmployeeOption } from '@/api/employee'
+import { useIsMobile } from '@/composables/useIsMobile'
+
+// 手机上取消「操作」列固定：固定列会占掉大半屏宽，剩下的内容几乎看不见
+const isMobile = useIsMobile()
 
 const loading = ref(false)
 const submitting = ref(false)
