@@ -336,6 +336,23 @@ export JAVA_HOME=$(/usr/libexec/java_home -v 21)
 java -jar apps/crm-boot/target/ok-crm.jar --spring.profiles.active=demo
 ```
 
+**用域名/外网访问时页面很慢或打不开** —— **不要拿 `npm run dev` 对外提供服务**。
+
+Vite dev server 是按模块逐个返回未构建源码的（首屏 8+ 个请求、其中 element-plus 整库约 2.4MB），
+再加上它的 Host 校验会拒绝陌生域名（报 `Blocked request. This host is not allowed`）。
+正确做法是构建后用静态服务托管产物：
+
+```bash
+cd web
+npm run build
+PORT=4180 API_TARGET=http://127.0.0.1:9002 npm run serve:dist
+```
+
+`web/scripts/serve-dist.mjs` 是个零依赖的静态服务，提供：SPA 路由回退、`/assets/` 长缓存、
+`index.html` 不缓存、gzip、以及 `/api` 反向代理。要上正式环境就用 `web/nginx-local.conf`。
+
+> 只想本地开发时用域名调试（不在意慢），才需要 `VITE_ALLOWED_HOSTS=你的域名 npm run dev`。
+
 **端口被占用** —— 后端默认端口是 **9001**。开发机上常有别的程序占着它（比如 rustfs 会占 9000/9001）。先查是谁：
 
 ```bash
@@ -414,6 +431,22 @@ mvn test
 - `ModuleBoundaryTest`（9 个）—— ArchUnit 模块边界与分层约束
 - `CrmFlowIntegrationTest`（13 个）—— 真实 HTTP 栈的端到端主链路：
   部署自动初始化 → 登录（无需选企业）→ 默认岗位与权限校验 → 建员工关联岗位 → 建客户进公海 → 领取并留痕 → 重复领取被拒 → 超期自动回收 → 数据权限隔离 → 岗位权限 403 → 跨企业隔离仍生效 → 企业信息可修改
+
+### 前端：移动端回归（浏览器实测）
+
+```bash
+# 一次性依赖：playwright-core（用本机 Chrome，不下载浏览器）
+mkdir -p ~/.workbuddy-ai/binaries/node/workspace && cd ~/.workbuddy-ai/binaries/node/workspace
+npm init -y && npm install playwright-core --no-audit --no-fund
+cd -
+
+# 跑（自包含：自己起后端 + 前端 + 手机视口浏览器）
+node scripts/verify-mobile.cjs
+```
+
+用 390×844 的 iPhone 视口走一遍登录、工作台、客户列表、弹窗、岗位管理、企业设置、公海池，
+断言「无横向溢出 / 侧栏变抽屉 / 弹窗不超出视口 / 表单标签上置 / 刷新动态路由不 404」，
+截图与日志落在 `.verify/`（已 gitignore）。19 项断言。
 
 ---
 
