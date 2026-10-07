@@ -42,11 +42,23 @@ const cleanEnv = () => {
   return env
 }
 
-const probe = (host, port, path) =>
+// expect 可选：给了就要求响应体里包含该片段。
+// 必须支持这个 —— 本项目的兜底异常处理器对「接口不存在」也返回 HTTP 200，
+// 只判断「有没有响应」的话，探错路径也会立刻「通过」。
+const probe = (host, port, path, expect) =>
   new Promise((resolve) => {
     const req = http.get({ host, port, path, timeout: 2000 }, (res) => {
-      res.resume()
-      resolve(true)
+      let body = ''
+      res.setEncoding('utf8')
+      res.on('data', (chunk) => {
+        body += chunk
+        if (expect && body.includes(expect)) {
+          req.destroy()
+          resolve(true)
+        }
+      })
+      res.on('end', () => resolve(!expect || body.includes(expect)))
+      res.on('error', () => resolve(false))
     })
     req.on('error', () => resolve(false))
     req.on('timeout', () => {
@@ -56,11 +68,11 @@ const probe = (host, port, path) =>
   })
 
 // 坑 2：vite 只监听 IPv6 的 localhost，三个地址都要试
-const waitFor = async (port, path, timeoutMs = 90000) => {
+const waitFor = async (port, path, timeoutMs = 90000, expect) => {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     for (const host of ['localhost', '127.0.0.1', '::1']) {
-      if (await probe(host, port, path)) return true
+      if (await probe(host, port, path, expect)) return true
     }
     await sleep(800)
   }
@@ -117,7 +129,7 @@ const noOverflow = async (page, label) => {
 (async () => {
   console.log('=== 启动后端（demo profile，嵌入式 H2）===')
   const backend = startBackend()
-  if (!(await waitFor(BACKEND_PORT, '/api/actuator/health'))) {
+  if (!(await waitFor(BACKEND_PORT, '/api/actuator/health', 90000, '"status":"UP"'))) {
     console.log('后端未就绪，见 ' + OUT + '/backend.log')
     backend.kill('SIGKILL')
     process.exit(1)

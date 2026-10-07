@@ -34,7 +34,7 @@ fi
 # ---------- 前置检查 ----------
 if [ ! -f "$JAR" ]; then
   echo "❌ 找不到 $JAR"
-  echo "   先打包：mvn -B -DskipTests package -pl apps/crm-boot -am"
+  echo "   先打包：./scripts/package.sh"
   exit 1
 fi
 
@@ -109,8 +109,25 @@ if lsof -ti:"$BACKEND_PORT" >/dev/null 2>&1; then
   echo "❌ 端口 $BACKEND_PORT 已被占用，占用进程："
   lsof -i:"$BACKEND_PORT" | tail -n +2
   echo "   换端口：BACKEND_PORT=9002 $0 $MODE"
+  echo "   或先停掉占用者：kill \$(lsof -ti:$BACKEND_PORT)"
   exit 1
 fi
+
+# ---------- 把 jar 复制出来再运行（重要，别删） ----------
+# 背景：Spring Boot 可执行 jar 是「jar 套 jar」。JVM 启动时缓存外层 jar 的中央目录
+# （类名 -> 字节偏移），内层 jar（比如 logback-classic）按需懒加载。
+# 如果构建产物在应用运行期间被 mvn package **原地重写**（inode 不变、内容已变），
+# JVM 会拿着旧索引去新文件里读，于是懒加载的类突然「找不到」：
+#     NoClassDefFoundError: ch/qos/logback/classic/spi/ThrowableProxy
+# 症状很有迷惑性：平时不报，一有异常日志就炸 —— 因为 ThrowableProxy 只在
+# 记录异常堆栈时才会被加载，是重写之后第一个被懒加载的类。
+#
+# 对策：运行时用一份独立副本，构建产物怎么改都影响不到正在跑的实例。
+# 副本按端口命名，保证同时跑多个实例时互不覆盖。
+RUN_DIR="$ROOT/apps/crm-boot/target/run"
+RUN_JAR="$RUN_DIR/ok-crm-${BACKEND_PORT}.jar"
+mkdir -p "$RUN_DIR"
+cp -f "$JAR" "$RUN_JAR"
 
 # ---------- 组装后端启动参数 ----------
 # 用字符串而不是数组：bash 3.2（macOS 自带）在 set -u 下展开空数组会报 unbound variable
@@ -157,20 +174,29 @@ cleanup() {
     echo "正在停止后端（pid=${BACKEND_PID}）..."
     kill "$BACKEND_PID" 2>/dev/null || true
   fi
+  # 顺手清掉运行时副本，别让 target/ 里堆一堆几十 MB 的 jar
+  [ -n "${RUN_JAR:-}" ] && rm -f "$RUN_JAR"
 }
 trap cleanup EXIT INT TERM
 
 echo "▶ 后端：profile=${PROFILE}  端口=${BACKEND_PORT}  缓存=${CACHE_MODE}"
 echo "  Java：${JAVA_BIN}"
+echo "  运行包：${RUN_JAR}（构建产物的副本，打包不会影响它）"
 # shellcheck disable=SC2086
-"$JAVA_BIN" -jar "$JAR" --spring.profiles.active="$PROFILE" --server.port="$BACKEND_PORT" $EXTRA_ARGS &
+"$JAVA_BIN" -jar "$RUN_JAR" --spring.profiles.active="$PROFILE" --server.port="$BACKEND_PORT" $EXTRA_ARGS &
 BACKEND_PID=$!
 
 # 等后端就绪
 echo -n "  等待后端就绪"
 BACKEND_READY=0
 for _ in $(seq 1 60); do
-  if curl -fsS -m 2 "http://127.0.0.1:$BACKEND_PORT/api/actuator/health" >/dev/null 2>&1; then
+  # 两个坑，缺一个探测就形同虚设：
+  #   1) 不能只看 HTTP 状态码 —— 兜底异常处理器对「接口不存在」也返回 HTTP 200，
+  #      body 里才是 {"code":404,...}。必须校验响应体里有 "status":"UP"。
+  #   2) 本机可能配了 http_proxy（开发机常见），localhost 请求必须 --noproxy 绕过，
+  #      否则请求被代理吞掉，表现为一直超时。
+  if curl -fsS -m 2 --noproxy '*' "http://127.0.0.1:$BACKEND_PORT/api/actuator/health" 2>/dev/null \
+       | grep -q '"status":"UP"'; then
     echo " ✅"
     BACKEND_READY=1
     break
@@ -206,8 +232,8 @@ echo ""
 echo " ⚠ 访问后台请用 localhost，不要用 127.0.0.1 ——"
 echo "   Vite 默认只监听 IPv6 的 localhost。"
 echo ""
-echo " 首次使用：先用「平台管理端」登录开通企业，再用「企业登录」进去"
 echo " 按 Ctrl-C 停止（后端会一起停）"
+echo " 单独停后端：kill \$(lsof -ti:${BACKEND_PORT})"
 echo "──────────────────────────────────────────────"
 echo ""
 

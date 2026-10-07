@@ -43,6 +43,16 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
+        <!--
+          健康检查端点 /api/actuator/health（见 management.endpoints.web.exposure）。
+          私有化部署时给 nginx upstream 健康检查 / k8s liveness 探针用。
+          ⚠ 别删：docs/deployment.md、SecurityConfig 的放行清单、scripts/start-local.sh
+          与 scripts/verify-mobile.cjs 的就绪探测都依赖它。
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.modulith</groupId>
             <artifactId>spring-modulith-starter-core</artifactId>
