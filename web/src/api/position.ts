@@ -1,7 +1,8 @@
 import { del, get, post, put } from './request'
+import type { Id } from '@/types'
 
 export interface PositionRow {
-  id: number
+  id: Id
   code: string
   name: string
   /** ALL | SELF */
@@ -42,7 +43,7 @@ export function listPositions(keyword?: string) {
   return get<PositionRow[]>('/positions', { keyword })
 }
 
-export function getPosition(id: number) {
+export function getPosition(id: Id) {
   return get<PositionRow>(`/positions/${id}`)
 }
 
@@ -50,16 +51,16 @@ export function createPosition(data: PositionForm) {
   return post<PositionRow>('/positions', data)
 }
 
-export function updatePosition(id: number, data: PositionForm) {
+export function updatePosition(id: Id, data: PositionForm) {
   return put<PositionRow>(`/positions/${id}`, data)
 }
 
-export function deletePosition(id: number) {
+export function deletePosition(id: Id) {
   return del<void>(`/positions/${id}`)
 }
 
 /** 单独保存权限树 */
-export function assignPositionPermissions(id: number, permissionCodes: string[]) {
+export function assignPositionPermissions(id: Id, permissionCodes: string[]) {
   return put<void>(`/positions/${id}/permissions`, permissionCodes)
 }
 

@@ -57,6 +57,49 @@ if [ "$FORCE" -eq 0 ] && [ -f "$JAR" ]; then
   fi
 fi
 
+# ---------- 选一个 JDK 21+ 给 Maven ----------
+# 本机实测：JAVA_HOME 会随 shell 环境变化（conda / jenv 之类的版本管理工具常把它指到
+# JDK 17）。此时 Maven 编译报的是「错误: 不支持发行版本 21」—— 这条信息很难让人联想到
+# JAVA_HOME 指错了，所以这里显式挑一个 ≥21 的 JDK 覆盖掉。
+# 逻辑与 start-local.sh 的 pick_java_bin 保持一致。
+REQUIRED_JAVA_MAJOR=21
+
+java_major_of() {
+  "$1" -version 2>&1 | head -1 | sed -E 's/.*version "([0-9]+).*/\1/'
+}
+
+pick_java_home() {
+  # 1) 现有的 JAVA_HOME 够新就用它
+  if [ -n "${JAVA_HOME:-}" ] && [ -x "$JAVA_HOME/bin/java" ]; then
+    if [ "$(java_major_of "$JAVA_HOME/bin/java" 2>/dev/null || echo 0)" -ge "$REQUIRED_JAVA_MAJOR" ] 2>/dev/null; then
+      echo "$JAVA_HOME"
+      return 0
+    fi
+  fi
+  # 2) 用 macOS 自带工具找
+  if [ -x /usr/libexec/java_home ]; then
+    for spec in "$REQUIRED_JAVA_MAJOR" "${REQUIRED_JAVA_MAJOR}+"; do
+      home="$(/usr/libexec/java_home -v "$spec" 2>/dev/null || true)"
+      if [ -n "$home" ] && [ -x "$home/bin/java" ]; then
+        echo "$home"
+        return 0
+      fi
+    done
+  fi
+  return 1
+}
+
+PICKED_JAVA_HOME="$(pick_java_home || true)"
+if [ -z "$PICKED_JAVA_HOME" ]; then
+  echo "❌ 找不到 JDK ${REQUIRED_JAVA_MAJOR} 或更高版本，无法编译"
+  echo "   当前 JAVA_HOME = ${JAVA_HOME:-（未设置）}"
+  echo "   本机已安装的 JDK："
+  /usr/libexec/java_home -V 2>&1 | sed 's/^/     /' | head -8
+  echo "   解决办法：export JAVA_HOME=\$(/usr/libexec/java_home -v ${REQUIRED_JAVA_MAJOR})"
+  exit 1
+fi
+export JAVA_HOME="$PICKED_JAVA_HOME"
+
 # ---------- 定位 mvn ----------
 # 不写死裸 mvn：它可能是 homebrew keg、sdkman、IDE 内置版本，也可能只有 mvnw。
 # 本机实测：PATH 里的 mvn 是个 alias（mvn-or-mvnw），在非交互 shell 里取不到，
@@ -80,6 +123,7 @@ fi
 
 # ---------- 打包 ----------
 cd "$ROOT"
+echo "▶ 使用 JDK：$JAVA_HOME"
 echo "▶ 使用 Maven：$MVN"
 echo "▶ 开始打包：-B -DskipTests package -pl apps/crm-boot -am ${MVN_ARGS[*]:-}"
 # ⚠ 空数组在 bash 3.2（macOS 自带）+ set -u 下直接展开会报 unbound variable。

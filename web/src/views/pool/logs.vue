@@ -65,7 +65,10 @@ async function load() {
   loading.value = true
   try {
     const page = await pagePoolLogs({
-      customerId: query.customerId ? Number(query.customerId) : undefined,
+      // ⚠ 不要把 ID 转成 Number：雪花 ID 是 19 位，超过 JS 的 Number.MAX_SAFE_INTEGER，
+      //   一转就丢精度（...225 会变成 ...200），后端按这个 ID 查不到任何数据。
+      //   字符串原样传即可，后端 Long 能正常反序列化。
+      customerId: query.customerId ? query.customerId.trim() : undefined,
       pageNum: query.pageNum,
       pageSize: query.pageSize
     })

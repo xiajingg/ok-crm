@@ -105,6 +105,7 @@ import {
   type PoolCustomerRow
 } from '@/api/pool'
 import { listEmployeeOptions, type EmployeeOption } from '@/api/employee'
+import type { Id } from '@/types'
 import { useIsMobile } from '@/composables/useIsMobile'
 
 // 手机上取消「操作」列固定：固定列会占掉大半屏宽，剩下的内容几乎看不见
@@ -142,7 +143,7 @@ async function claim(row: PoolCustomerRow) {
 
 const assignVisible = ref(false)
 const assignTarget = ref<PoolCustomerRow | null>(null)
-const assignEmployeeId = ref<number | undefined>()
+const assignEmployeeId = ref<Id | undefined>()
 const assignRemark = ref('')
 
 function openAssign(row: PoolCustomerRow) {

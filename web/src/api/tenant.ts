@@ -1,4 +1,5 @@
 import { get, put } from './request'
+import type { Id } from '@/types'
 
 /**
  * 企业设置。
@@ -7,7 +8,7 @@ import { get, put } from './request'
  * 不再有开通、停用、分页管理这些多租户运营接口。
  */
 export interface TenantRow {
-  id: number
+  id: Id
   code: string
   name: string
   region: string

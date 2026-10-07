@@ -291,6 +291,7 @@ import {
 } from '@/api/customer'
 import { listEmployeeOptions, type EmployeeOption } from '@/api/employee'
 import { useIsMobile } from '@/composables/useIsMobile'
+import type { Id } from '@/types'
 
 // 手机上取消「操作」列固定：固定列会占掉大半屏宽，剩下的内容几乎看不见
 const isMobile = useIsMobile()
@@ -304,7 +305,7 @@ const employees = ref<EmployeeOption[]>([])
 const query = reactive({
   keyword: '',
   level: '',
-  ownerId: undefined as number | undefined,
+  ownerId: undefined as Id | undefined,
   pageNum: 1,
   pageSize: 10
 })
@@ -340,7 +341,7 @@ function reset() {
 
 const formVisible = ref(false)
 const formRef = ref<FormInstance>()
-const form = reactive<CustomerForm & { id?: number }>({})
+const form = reactive<CustomerForm & { id?: Id }>({})
 
 const formRules: FormRules = {
   name: [{ required: true, message: '请输入客户名称', trigger: 'blur' }]
@@ -404,7 +405,7 @@ async function submitForm() {
 
 const transferVisible = ref(false)
 const transferTarget = ref<CustomerRow | null>(null)
-const transferOwnerId = ref<number | undefined>()
+const transferOwnerId = ref<Id | undefined>()
 
 function openTransfer(row: CustomerRow) {
   transferTarget.value = row
@@ -454,11 +455,11 @@ async function openDetail(row: CustomerRow) {
   await Promise.all([loadContacts(row.id), loadFollowUps(row.id)])
 }
 
-async function loadContacts(customerId: number) {
+async function loadContacts(customerId: Id) {
   contacts.value = await listContacts(customerId)
 }
 
-async function loadFollowUps(customerId: number) {
+async function loadFollowUps(customerId: Id) {
   const page = await pageFollowUps(customerId, { pageNum: 1, pageSize: 20 })
   followUps.value = page.records
 }

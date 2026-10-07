@@ -1,8 +1,8 @@
 import { del, get, post, put } from './request'
-import type { PageResult } from '@/types'
+import type { PageResult, Id } from '@/types'
 
 export interface EmployeeRow {
-  id: number
+  id: Id
   username: string
   realName?: string
   phone?: string
@@ -10,14 +10,14 @@ export interface EmployeeRow {
   status: number
   statusLabel: string
   remark?: string
-  positionIds: number[]
+  positionIds: Id[]
   positionNames: string[]
   lastLoginAt?: string
   createdAt: string
 }
 
 export interface EmployeeOption {
-  id: number
+  id: Id
   username: string
   realName?: string
   phone?: string
@@ -32,7 +32,7 @@ export interface EmployeeForm {
   email?: string
   status?: number
   remark?: string
-  positionIds?: number[]
+  positionIds?: Id[]
 }
 
 export function pageEmployees(params: {
@@ -44,7 +44,7 @@ export function pageEmployees(params: {
   return get<PageResult<EmployeeRow>>('/employees', params)
 }
 
-export function getEmployee(id: number) {
+export function getEmployee(id: Id) {
   return get<EmployeeRow>(`/employees/${id}`)
 }
 
@@ -52,19 +52,19 @@ export function createEmployee(data: EmployeeForm) {
   return post<EmployeeRow>('/employees', data)
 }
 
-export function updateEmployee(id: number, data: EmployeeForm) {
+export function updateEmployee(id: Id, data: EmployeeForm) {
   return put<EmployeeRow>(`/employees/${id}`, data)
 }
 
-export function deleteEmployee(id: number) {
+export function deleteEmployee(id: Id) {
   return del<void>(`/employees/${id}`)
 }
 
-export function changeEmployeeStatus(id: number, enabled: boolean) {
+export function changeEmployeeStatus(id: Id, enabled: boolean) {
   return put<void>(`/employees/${id}/status`, null, { enabled })
 }
 
-export function resetEmployeePassword(id: number, password: string) {
+export function resetEmployeePassword(id: Id, password: string) {
   return put<void>(`/employees/${id}/password`, null, { password })
 }
 

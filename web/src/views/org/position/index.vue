@@ -126,6 +126,7 @@ import {
   type PositionRow
 } from '@/api/position'
 import { useIsMobile } from '@/composables/useIsMobile'
+import type { Id } from '@/types'
 
 // 手机上取消「操作」列固定：固定列会占掉大半屏宽，剩下的内容几乎看不见
 const isMobile = useIsMobile()
@@ -198,7 +199,7 @@ async function load() {
 
 const formVisible = ref(false)
 const formRef = ref<FormInstance>()
-const form = reactive<PositionForm & { id?: number }>({})
+const form = reactive<PositionForm & { id?: Id }>({})
 
 const formRules: FormRules = {
   code: [{ required: true, message: '请输入岗位编码', trigger: 'blur' }],
