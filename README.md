@@ -162,20 +162,36 @@ mvn -pl apps/crm-boot -am package -Pedition-pro
 
 ```bash
 # 1. 打包（只需一次）
-mvn -B -DskipTests package -pl apps/crm-boot -am
+./scripts/package.sh
 
 # 2. 安装前端依赖（只需一次）
 cd web && npm install && cd ..
 
-# 3a. 连真实 MySQL 启动
+# 3a. 连真实 MySQL 启动（后端 + 前端）
 export DB_PASSWORD=你的MySQL密码
 ./scripts/start-local.sh mysql
 
 # 3b. 或者零依赖启动（嵌入式 H2，不需要 MySQL）
 ./scripts/start-local.sh demo
+
+# 3c. 只起后端，不启动前端
+./scripts/start-local.sh mysql --backend-only
 ```
 
 脚本会自动等后端就绪、检查端口占用，并把前端的接口代理指向后端。按 `Ctrl-C` 一起停。
+
+**只跑后端**（前端走构建产物 + 静态服务、不需要 Vite dev server 时）：
+
+```bash
+BACKEND_PORT=9002 ./scripts/start-local.sh mysql --backend-only
+```
+
+此时前端由 `web/scripts/serve-dist.mjs` 托管（默认 8080，`/api` 反代到 9002）：
+
+```bash
+cd web && npm run build
+API_TARGET=http://127.0.0.1:9002 PORT=4180 node scripts/serve-dist.mjs
+```
 
 密码也可以写在仓库根目录的 `.env.local`（该文件已被 `.gitignore` 忽略）：
 

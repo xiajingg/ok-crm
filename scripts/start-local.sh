@@ -3,8 +3,12 @@
 # 本地一键启动：后端 + 前端
 #
 # 用法：
-#   ./scripts/start-local.sh mysql    # 连真实 MySQL（需要 DB_PASSWORD，见下）
-#   ./scripts/start-local.sh demo     # 零依赖模式（嵌入式 H2，不需要 MySQL）
+#   ./scripts/start-local.sh mysql                  # 后端 + 前端（连真实 MySQL）
+#   ./scripts/start-local.sh demo                   # 后端 + 前端（零依赖 H2）
+#   ./scripts/start-local.sh mysql --backend-only   # 只起后端，不启动前端
+#
+#   只起后端的典型场景：前端走构建产物 + 静态服务（web/scripts/serve-dist.mjs），
+#   不需要 Vite dev server。
 #
 # 数据库密码的来源（按顺序查找）：
 #   1. 已导出的环境变量 DB_PASSWORD
@@ -14,14 +18,37 @@
 #   BACKEND_PORT  后端端口，默认 9001（注意：本机 9000/9001 可能被 rustfs 占用，
 #                 被占用时脚本会直接报出来，换一个即可，例如 BACKEND_PORT=9002）
 #   FRONTEND_PORT 前端端口，默认 5173
+#   BACKEND_ONLY  设为 1 等价于命令行加 --backend-only
 #
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MODE="${1:-mysql}"
 BACKEND_PORT="${BACKEND_PORT:-9001}"
 FRONTEND_PORT="${FRONTEND_PORT:-5173}"
 JAR="$ROOT/apps/crm-boot/target/ok-crm.jar"
+
+# ---------- 解析参数 ----------
+# 位置参数是 MODE（mysql / demo），另外接受 --backend-only 开关，两者顺序随意。
+MODE=""
+BACKEND_ONLY="${BACKEND_ONLY:-0}"
+for arg in "$@"; do
+  case "$arg" in
+    mysql | demo)        MODE="$arg" ;;
+    --backend-only | -b) BACKEND_ONLY=1 ;;
+    *)
+      echo "❌ 未知参数：$arg"
+      echo "   用法：$0 [mysql|demo] [--backend-only]"
+      exit 1
+      ;;
+  esac
+done
+MODE="${MODE:-mysql}"
+# 拼回给用户复制的参数串，保证提示里的命令和用户实际想跑的模式一致
+if [ "$BACKEND_ONLY" -eq 1 ]; then
+  BACKEND_ONLY_ARG=" --backend-only"
+else
+  BACKEND_ONLY_ARG=""
+fi
 
 # ---------- 载入 .env.local ----------
 if [ -f "$ROOT/.env.local" ]; then
@@ -99,16 +126,18 @@ if [ -z "$JAVA_BIN" ]; then
   exit 1
 fi
 
-if [ ! -d "$ROOT/web/node_modules" ]; then
+# 只起后端时不需要前端依赖
+if [ "$BACKEND_ONLY" -ne 1 ] && [ ! -d "$ROOT/web/node_modules" ]; then
   echo "❌ 前端依赖未安装"
   echo "   先安装：cd web && npm install"
+  echo "   或只起后端：$0 $MODE --backend-only"
   exit 1
 fi
 
 if lsof -ti:"$BACKEND_PORT" >/dev/null 2>&1; then
   echo "❌ 端口 $BACKEND_PORT 已被占用，占用进程："
   lsof -i:"$BACKEND_PORT" | tail -n +2
-  echo "   换端口：BACKEND_PORT=9002 $0 $MODE"
+  echo "   换端口：BACKEND_PORT=9002 $0 $MODE$BACKEND_ONLY_ARG"
   echo "   或先停掉占用者：kill \$(lsof -ti:$BACKEND_PORT)"
   exit 1
 fi
@@ -218,7 +247,11 @@ fi
 
 echo ""
 echo "──────────────────────────────────────────────"
-echo " 管理后台   http://localhost:${FRONTEND_PORT}"
+if [ "$BACKEND_ONLY" -eq 1 ]; then
+  echo " 后端接口   http://127.0.0.1:${BACKEND_PORT}/api"
+else
+  echo " 管理后台   http://localhost:${FRONTEND_PORT}"
+fi
 echo " 接口文档   http://127.0.0.1:${BACKEND_PORT}/api/swagger-ui.html"
 echo " 默认账号   admin / admin123456"
 # 注意判断的是 MODE 而不是 PROFILE：mysql 模式下 profile 用的是 dev
@@ -229,13 +262,22 @@ else
 fi
 echo " 缓存       ${CACHE_MODE}"
 echo ""
-echo " ⚠ 访问后台请用 localhost，不要用 127.0.0.1 ——"
-echo "   Vite 默认只监听 IPv6 的 localhost。"
-echo ""
+if [ "$BACKEND_ONLY" -ne 1 ]; then
+  echo " ⚠ 访问后台请用 localhost，不要用 127.0.0.1 ——"
+  echo "   Vite 默认只监听 IPv6 的 localhost。"
+  echo ""
+fi
 echo " 按 Ctrl-C 停止（后端会一起停）"
 echo " 单独停后端：kill \$(lsof -ti:${BACKEND_PORT})"
 echo "──────────────────────────────────────────────"
 echo ""
+
+# ---------- 只起后端：挂住进程直到 Ctrl-C ----------
+if [ "$BACKEND_ONLY" -eq 1 ]; then
+  # wait 让脚本停在这里。Ctrl-C 会触发上面的 trap cleanup，把后端一起停掉。
+  wait "$BACKEND_PID"
+  exit 0
+fi
 
 cd "$ROOT/web"
 VITE_API_TARGET="http://127.0.0.1:$BACKEND_PORT" npm run dev -- --port "$FRONTEND_PORT"
